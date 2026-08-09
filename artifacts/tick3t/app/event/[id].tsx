@@ -1,476 +1,313 @@
 import React, { useState } from 'react';
 import {
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColors } from '@/hooks/useColors';
+import { Colors } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
-import { TicketType } from '@/types';
-import { formatCurrency, formatFullDate } from '@/utils/format';
+import { getAvailabilityPercent } from '@/utils/format';
 
 export default function EventDetailScreen() {
+  const C = Colors.dark;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { getEventById, purchaseTicket } = useApp();
+  const event = getEventById(id ?? '');
 
-  const event = getEventById(id);
-  const [selectedType, setSelectedType] = useState<TicketType | null>(event?.ticketTypes[0] ?? null);
+  const [selectedTier, setSelectedTier] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [purchasing, setPurchasing] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [buying, setBuying] = useState(false);
 
   if (!event) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.foreground }]}>Event not found</Text>
-      </View>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={{ color: C.text, fontSize: 28 }}>←</Text>
+        </Pressable>
+        <View style={styles.notFound}>
+          <Text style={[styles.notFoundText, { color: C.text }]}>Event not found</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  const total = (selectedType?.price ?? 0) * quantity;
-  const currency = selectedType?.currency ?? 'NGN';
+  const soldOut = event.available === 0;
+  const tier = event.tiers[selectedTier];
+  const total = tier.price * quantity;
+  const availPct = getAvailabilityPercent(event.available, event.total);
+  const almostGone = !soldOut && availPct >= 70;
 
   const handleBuy = async () => {
-    if (!selectedType) return;
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
+    if (soldOut) {
+      Alert.alert('Sold Out', 'This event is sold out. Check the Marketplace for resale tickets.', [
+        { text: 'View Marketplace', onPress: () => router.push('/(tabs)/marketplace') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
     Alert.alert(
       'Confirm Purchase',
-      `${quantity}x ${selectedType.name}\n${event.title}\n\nTotal: ${formatCurrency(total, currency)}`,
+      `${quantity}× ${tier.name}\n${event.title}\n\nTotal: $${total}\n\nSecure payment via Paynow · NFT ticket on TON blockchain`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Buy Now',
+          text: 'Get Key →',
           onPress: async () => {
-            setPurchasing(true);
+            setBuying(true);
             try {
-              const ticket = await purchaseTicket(event, selectedType, quantity);
-              if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert(
-                'Key Secured',
-                'Your digital key is now in your vault.',
-                [{ text: 'View Key', onPress: () => router.replace(`/ticket/${ticket.id}`) }],
-              );
+              const ticket = await purchaseTicket(event, tier.id, quantity);
+              router.replace(`/ticket/${ticket.id}`);
             } finally {
-              setPurchasing(false);
+              setBuying(false);
             }
           },
         },
-      ],
+      ]
     );
   };
 
-  const topPadding = Platform.OS === 'web' ? 67 : insets.top;
-  const bottomPadding = Platform.OS === 'web' ? 34 : insets.bottom;
-
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Custom header */}
-      <View style={[styles.navBar, { paddingTop: topPadding + 6 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.navBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="chevron-back" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.navBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="share-outline" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: bottomPadding + 140 }}>
-        {/* Hero section */}
-        <View style={[styles.hero, { backgroundColor: event.accentColor + '20', borderBottomColor: event.accentColor + '40' }]}>
-          <View style={styles.heroPadding}>
-            {/* Category + tags */}
-            <View style={styles.tagRow}>
-              <View style={[styles.catPill, { backgroundColor: event.accentColor }]}>
-                <Text style={styles.catPillText}>{event.category}</Text>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Hero */}
+        <View style={styles.hero}>
+          <Image source={{ uri: event.image }} style={styles.heroImage} />
+          <View style={styles.heroOverlay} />
+          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Text style={styles.backText}>← Back</Text>
+          </Pressable>
+          <Pressable style={styles.heartBtn} onPress={() => setLiked(!liked)}>
+            <Text style={styles.heartText}>{liked ? '❤️' : '🤍'}</Text>
+          </Pressable>
+          <View style={styles.heroContent}>
+            <View style={styles.heroBadges}>
+              <View style={[styles.badge, { backgroundColor: C.primary + 'CC' }]}>
+                <Text style={styles.badgeText}>{event.category}</Text>
               </View>
-              {event.tags.slice(0, 2).map((tag) => (
-                <View key={tag} style={[styles.tagPill, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-                  <Text style={[styles.tagText, { color: colors.mutedForeground }]}>{tag}</Text>
+              {event.isVerifiedOrganizer && (
+                <View style={[styles.badge, { backgroundColor: '#16a34aCC' }]}>
+                  <Text style={styles.badgeText}>✓ Verified Organizer</Text>
+                </View>
+              )}
+              {soldOut && <View style={[styles.badge, { backgroundColor: '#EF4444CC' }]}><Text style={styles.badgeText}>Sold Out</Text></View>}
+              {almostGone && !soldOut && <View style={[styles.badge, { backgroundColor: '#F59E0BCC' }]}><Text style={styles.badgeText}>Almost Sold Out</Text></View>}
+            </View>
+            <Text style={styles.heroTitle}>{event.title}</Text>
+            <Text style={styles.heroOrganizer}>by {event.organizer}</Text>
+          </View>
+        </View>
+
+        {/* Info cards */}
+        <View style={styles.infoGrid}>
+          {[
+            { icon: '📅', label: event.date, sub: event.time },
+            { icon: '📍', label: event.location, sub: event.fullAddress },
+            { icon: '👥', label: `${event.attendees.toLocaleString()} going`, sub: 'Join them' },
+            { icon: '⏱', label: '6 hours', sub: 'Duration' },
+          ].map((item, i) => (
+            <View key={i} style={[styles.infoCard, { backgroundColor: C.card, borderColor: C.border }]}>
+              <Text style={styles.infoIcon}>{item.icon}</Text>
+              <Text style={[styles.infoLabel, { color: C.text }]} numberOfLines={1}>{item.label}</Text>
+              <Text style={[styles.infoSub, { color: C.textMuted }]} numberOfLines={1}>{item.sub}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Availability bar */}
+        {!soldOut && (
+          <View style={styles.availSection}>
+            <View style={[styles.availBar, { backgroundColor: C.border }]}>
+              <View style={[styles.availFill, { width: `${availPct}%`, backgroundColor: almostGone ? '#F59E0B' : C.primary }]} />
+            </View>
+            <Text style={[styles.availText, { color: almostGone ? '#F59E0B' : C.textMuted }]}>
+              {event.available} of {event.total} tickets left
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.body}>
+          {/* Description */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.text }]}>About</Text>
+            <Text style={[styles.description, { color: C.textSecondary }]}>{event.description}</Text>
+          </View>
+
+          {/* Tags */}
+          <View style={styles.tagRow}>
+            {event.tags.map(tag => (
+              <View key={tag} style={[styles.tag, { backgroundColor: C.card, borderColor: C.border }]}>
+                <Text style={[styles.tagText, { color: C.textSecondary }]}>#{tag}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Amenities */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.text }]}>Amenities</Text>
+            <View style={styles.amenityGrid}>
+              {event.amenities.map(a => (
+                <View key={a} style={[styles.amenityItem, { backgroundColor: C.card, borderColor: C.border }]}>
+                  <Text style={[styles.amenityText, { color: C.textSecondary }]}>✓ {a}</Text>
                 </View>
               ))}
             </View>
-
-            <Text style={[styles.heroTitle, { color: colors.foreground }]}>{event.title}</Text>
-
-            {/* Key event details */}
-            <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.detailRow}>
-                <View style={[styles.detailIcon, { backgroundColor: event.accentColor + '20' }]}>
-                  <Ionicons name="calendar" size={16} color={event.accentColor} />
-                </View>
-                <View>
-                  <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Date</Text>
-                  <Text style={[styles.detailValue, { color: colors.foreground }]}>{formatFullDate(event.date)}</Text>
-                </View>
-              </View>
-              <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.detailRow}>
-                <View style={[styles.detailIcon, { backgroundColor: event.accentColor + '20' }]}>
-                  <Ionicons name="time" size={16} color={event.accentColor} />
-                </View>
-                <View>
-                  <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Time</Text>
-                  <Text style={[styles.detailValue, { color: colors.foreground }]}>{event.time}</Text>
-                </View>
-              </View>
-              <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.detailRow}>
-                <View style={[styles.detailIcon, { backgroundColor: event.accentColor + '20' }]}>
-                  <Ionicons name="location" size={16} color={event.accentColor} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Venue</Text>
-                  <Text style={[styles.detailValue, { color: colors.foreground }]}>
-                    {event.venue}, {event.city}
-                  </Text>
-                </View>
-              </View>
-            </View>
           </View>
-        </View>
 
-        {/* About */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About</Text>
-          <Text style={[styles.description, { color: colors.mutedForeground }]}>{event.description}</Text>
-        </View>
-
-        {/* Ticket types */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Select Your Key</Text>
-          {event.ticketTypes.map((type) => (
-            <Pressable
-              key={type.id}
-              onPress={() => setSelectedType(type)}
-              style={[
-                styles.ticketTypeCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: selectedType?.id === type.id ? event.accentColor : colors.border,
-                  borderWidth: selectedType?.id === type.id ? 2 : 1,
-                },
-              ]}
-            >
-              <View style={styles.typeTop}>
-                <View style={styles.typeNameRow}>
-                  <View
-                    style={[
-                      styles.typeRadio,
-                      {
-                        borderColor: selectedType?.id === type.id ? event.accentColor : colors.border,
-                        backgroundColor: selectedType?.id === type.id ? event.accentColor : 'transparent',
-                      },
-                    ]}
-                  >
-                    {selectedType?.id === type.id && <View style={styles.typeRadioDot} />}
+          {/* Ticket tier selector */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.text }]}>Select Ticket Type</Text>
+            {event.tiers.map((t, i) => (
+              <Pressable
+                key={t.id}
+                style={[
+                  styles.tierCard,
+                  { backgroundColor: C.card, borderColor: selectedTier === i ? C.primary : C.border },
+                  selectedTier === i && { borderWidth: 2 },
+                ]}
+                onPress={() => setSelectedTier(i)}
+              >
+                <View style={styles.tierHeader}>
+                  <View>
+                    <Text style={[styles.tierName, { color: C.text }]}>{t.name}</Text>
+                    <Text style={[styles.tierPrice, { color: C.primary }]}>${t.price}</Text>
                   </View>
-                  <Text style={[styles.typeName, { color: colors.foreground }]}>{type.name}</Text>
+                  <View style={[styles.tierRadio, { borderColor: selectedTier === i ? C.primary : C.border }]}>
+                    {selectedTier === i && <View style={[styles.tierRadioFill, { backgroundColor: C.primary }]} />}
+                  </View>
                 </View>
-                <Text style={[styles.typePrice, { color: selectedType?.id === type.id ? event.accentColor : colors.foreground }]}>
-                  {formatCurrency(type.price, type.currency)}
-                </Text>
-              </View>
-              <Text style={[styles.typeDesc, { color: colors.mutedForeground }]}>{type.description}</Text>
-              {type.perks && type.perks.length > 0 && (
-                <View style={styles.perksRow}>
-                  {type.perks.map((perk) => (
-                    <View key={perk} style={[styles.perkChip, { backgroundColor: event.accentColor + '18' }]}>
-                      <Ionicons name="checkmark" size={10} color={event.accentColor} />
-                      <Text style={[styles.perkText, { color: event.accentColor }]}>{perk}</Text>
-                    </View>
+                <View style={styles.tierPerks}>
+                  {t.perks.map(p => (
+                    <Text key={p} style={[styles.tierPerk, { color: C.textSecondary }]}>✓ {p}</Text>
                   ))}
                 </View>
-              )}
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
+              </Pressable>
+            ))}
+          </View>
 
-      {/* Bottom bar */}
-      <View
-        style={[
-          styles.bottomBar,
-          { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: bottomPadding + 8 },
-        ]}
-      >
-        {/* Quantity */}
-        <View style={styles.qtySection}>
-          <Text style={[styles.qtyLabel, { color: colors.mutedForeground }]}>Qty</Text>
-          <View style={styles.qtyControl}>
-            <TouchableOpacity
-              onPress={() => setQuantity(Math.max(1, quantity - 1))}
-              style={[styles.qtyBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-            >
-              <Ionicons name="remove" size={18} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text style={[styles.qtyNum, { color: colors.foreground }]}>{quantity}</Text>
-            <TouchableOpacity
-              onPress={() => setQuantity(Math.min(10, quantity + 1))}
-              style={[styles.qtyBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-            >
-              <Ionicons name="add" size={18} color={colors.foreground} />
-            </TouchableOpacity>
+          {/* Quantity picker */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.text }]}>Quantity</Text>
+            <View style={styles.quantityRow}>
+              <Pressable
+                style={[styles.qtyBtn, { backgroundColor: C.card, borderColor: C.border }]}
+                onPress={() => setQuantity(q => Math.max(1, q - 1))}
+              >
+                <Text style={[styles.qtyBtnText, { color: C.text }]}>−</Text>
+              </Pressable>
+              <Text style={[styles.qtyValue, { color: C.text }]}>{quantity}</Text>
+              <Pressable
+                style={[styles.qtyBtn, { backgroundColor: C.card, borderColor: C.border }]}
+                onPress={() => setQuantity(q => Math.min(10, q + 1))}
+              >
+                <Text style={[styles.qtyBtnText, { color: C.text }]}>+</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Trust signals */}
+          <View style={[styles.trustRow, { backgroundColor: C.card, borderColor: C.border }]}>
+            {[
+              { icon: '🔒', text: 'Secure via Paynow' },
+              { icon: '⬡', text: 'NFT on TON blockchain' },
+              { icon: '✓', text: 'Verified organizer' },
+            ].map((t, i) => (
+              <View key={i} style={styles.trustItem}>
+                <Text style={styles.trustIcon}>{t.icon}</Text>
+                <Text style={[styles.trustText, { color: C.textMuted }]}>{t.text}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        {/* Buy button */}
-        <TouchableOpacity
+        <View style={{ height: 120 }} />
+      </ScrollView>
+
+      {/* Sticky buy button */}
+      <View style={[styles.buyBar, { backgroundColor: C.card, borderTopColor: C.border }]}>
+        <View>
+          <Text style={[styles.buyTotal, { color: C.text }]}>${total}</Text>
+          <Text style={[styles.buyBreakdown, { color: C.textMuted }]}>{quantity}× {tier.name}</Text>
+        </View>
+        <Pressable
+          style={[styles.buyBtn, { backgroundColor: soldOut ? C.textMuted : C.primary }]}
           onPress={handleBuy}
-          disabled={purchasing || !selectedType}
-          style={[styles.buyBtn, { backgroundColor: purchasing ? colors.muted : colors.primary, flex: 1 }]}
+          disabled={buying}
         >
-          <Text style={[styles.buyBtnText, { color: purchasing ? colors.mutedForeground : colors.primaryForeground }]}>
-            {purchasing ? 'Processing...' : `Get Key · ${formatCurrency(total, currency)}`}
+          <Text style={styles.buyBtnText}>
+            {buying ? 'Processing…' : soldOut ? 'View Resale' : 'Get Key →'}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  navBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    zIndex: 10,
-  },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hero: {
-    borderBottomWidth: 1,
-    paddingTop: Platform.OS === 'web' ? 140 : 100,
-    paddingBottom: 4,
-  },
-  heroPadding: {
-    paddingHorizontal: 16,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
-  },
-  catPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  catPillText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-  },
-  tagPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  tagText: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-    lineHeight: 34,
-    marginBottom: 16,
-  },
-  detailCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    gap: 12,
-  },
-  detailIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-    marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  detailDivider: {
-    height: 1,
-    marginHorizontal: 14,
-  },
-  section: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 22,
-    fontFamily: 'Inter_400Regular',
-  },
-  ticketTypeCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
-  },
-  typeTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  typeNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  typeRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  typeRadioDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFF',
-  },
-  typeName: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  typePrice: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-  },
-  typeDesc: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    marginLeft: 30,
-    marginBottom: 8,
-  },
-  perksRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginLeft: 30,
-  },
-  perkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  perkText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-  },
-  qtySection: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  qtyLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-  },
-  qtyControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  qtyBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyNum: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  buyBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buyBtnText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-  },
-  errorText: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginTop: 100,
-  },
+  safe: { flex: 1 },
+  hero: { height: 320, position: 'relative' },
+  heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,12,24,0.6)' },
+  backBtn: { position: 'absolute', top: 16, left: 16, backgroundColor: 'rgba(5,12,24,0.6)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  backText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  heartBtn: { position: 'absolute', top: 16, right: 16, backgroundColor: 'rgba(5,12,24,0.6)', padding: 10, borderRadius: 20 },
+  heartText: { fontSize: 20 },
+  heroContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20 },
+  heroBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  heroTitle: { color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
+  heroOrganizer: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
+
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 10 },
+  infoCard: { width: '47%', borderRadius: 12, padding: 12, borderWidth: 1 },
+  infoIcon: { fontSize: 18, marginBottom: 4 },
+  infoLabel: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  infoSub: { fontSize: 11 },
+
+  availSection: { paddingHorizontal: 20, marginBottom: 8 },
+  availBar: { height: 4, borderRadius: 2, marginBottom: 6, overflow: 'hidden' },
+  availFill: { height: '100%', borderRadius: 2 },
+  availText: { fontSize: 12 },
+
+  body: { paddingHorizontal: 20 },
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 17, fontWeight: '800', marginBottom: 12, letterSpacing: -0.2 },
+  description: { fontSize: 14, lineHeight: 22 },
+
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  tag: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
+  tagText: { fontSize: 12 },
+
+  amenityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  amenityItem: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1 },
+  amenityText: { fontSize: 12 },
+
+  tierCard: { borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1 },
+  tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  tierName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  tierPrice: { fontSize: 20, fontWeight: '800' },
+  tierRadio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  tierRadioFill: { width: 10, height: 10, borderRadius: 5 },
+  tierPerks: { gap: 4 },
+  tierPerk: { fontSize: 13 },
+
+  quantityRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  qtyBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  qtyBtnText: { fontSize: 22, fontWeight: '400' },
+  qtyValue: { fontSize: 24, fontWeight: '800', minWidth: 36, textAlign: 'center' },
+
+  trustRow: { flexDirection: 'row', borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 8, gap: 0 },
+  trustItem: { flex: 1, alignItems: 'center', gap: 4 },
+  trustIcon: { fontSize: 18 },
+  trustText: { fontSize: 10, textAlign: 'center', letterSpacing: 0.1 },
+
+  buyBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 16, paddingBottom: 30, borderTopWidth: 1 },
+  buyTotal: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  buyBreakdown: { fontSize: 12, marginTop: 2 },
+  buyBtn: { paddingHorizontal: 28, paddingVertical: 16, borderRadius: 16 },
+  buyBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  notFoundText: { fontSize: 18 },
 });

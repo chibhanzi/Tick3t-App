@@ -1,333 +1,231 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Event, PurchasedTicket, TicketType, User } from '@/types';
+import { Event, PurchasedTicket, User } from '@/types';
 
-const TICKETS_KEY = '@tick3t/tickets';
-const USER_KEY = '@tick3t/user';
+const TICKETS_KEY = 'tick3rt.vault.tickets';
+const USER_KEY = 'tick3rt.mock-auth.user';
 
-export const MOCK_EVENTS: Event[] = [
+// Real events from digital-event-key-74
+const MOCK_EVENTS: Event[] = [
   {
     id: '1',
-    title: 'Davido: TIMELESS World Tour',
-    category: 'Music',
-    date: '2026-09-15',
-    time: '8:00 PM',
-    venue: 'Teslim Balogun Stadium',
-    city: 'Lagos',
-    country: 'Nigeria',
-    accentColor: '#FF6B35',
-    description:
-      'Experience the electrifying TIMELESS World Tour with Afrobeats superstar Davido. An unforgettable night of chart-topping hits, incredible production, and pure energy that will leave you wanting more.',
-    ticketTypes: [
-      { id: 'ga', name: 'General Admission', price: 15000, currency: 'NGN', description: 'Standing area access', available: 5000 },
-      {
-        id: 'vip',
-        name: 'VIP Experience',
-        price: 75000,
-        currency: 'NGN',
-        description: 'Priority entry + backstage access',
-        available: 200,
-        perks: ['Early entry', 'Meet & greet', 'Official merch'],
-      },
-      {
-        id: 'table',
-        name: 'VIP Table (x6)',
-        price: 500000,
-        currency: 'NGN',
-        description: 'Premium table for 6 guests',
-        available: 20,
-        perks: ['Dedicated server', 'Premium drinks', 'Best view'],
-      },
-    ],
+    title: 'Bass Drop Festival 2024',
+    date: 'March 15, 2024',
+    time: '9:00 PM',
+    location: 'Miami Beach Arena',
+    fullAddress: '1901 Biscayne Blvd, Miami, FL 33132',
+    price: 89,
+    image: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=800&h=500&fit=crop',
+    attendees: 2500,
+    category: 'Music Festival',
+    available: 150,
+    total: 500,
     featured: true,
-    tags: ['Afrobeats', 'Live Music', 'Concert'],
+    description: "Get ready for the ultimate electronic music experience! Bass Drop Festival brings together the hottest DJs and producers for a night of non-stop dancing under the Miami stars.\n\nFeaturing Skrillex, Diplo, Marshmello and many more. This isn't just a concert — it's a full sensory experience with cutting-edge visuals, interactive art installations, and the best sound system on the East Coast.",
+    organizer: 'Bass Events Miami',
+    isVerifiedOrganizer: true,
+    tags: ['Electronic', 'Dance', 'Festival', 'Miami'],
+    amenities: ['Food Trucks', 'Premium Bar', 'Valet Parking', 'Free WiFi', '24/7 Security'],
+    tiers: [
+      { id: 'general', name: 'General Admission', price: 89, perks: ['Event access', 'Standing area', 'Free water'] },
+      { id: 'vip', name: 'VIP', price: 189, perks: ['Priority entry', 'VIP lounge access', 'Complimentary drink', 'Dedicated restrooms'] },
+      { id: 'backstage', name: 'Backstage Pass', price: 349, perks: ['All VIP perks', 'Meet & greet with artists', 'Backstage access', 'Exclusive merch bundle'] },
+    ],
   },
   {
     id: '2',
-    title: 'Lagos Food & Drink Festival',
-    category: 'Food',
-    date: '2026-09-22',
-    time: '11:00 AM',
-    venue: 'Eko Hotel & Suites',
-    city: 'Lagos',
-    country: 'Nigeria',
-    accentColor: '#F59E0B',
-    description:
-      'Celebrate the best of Nigerian cuisine and international flavors. 50+ vendors, live cooking demos, celebrity chefs, and curated dining experiences you cannot miss.',
-    ticketTypes: [
-      { id: 'standard', name: 'Standard', price: 8000, currency: 'NGN', description: 'Full day access', available: 2000 },
-      {
-        id: 'premium',
-        name: 'Premium Foodie',
-        price: 25000,
-        currency: 'NGN',
-        description: 'Exclusive tasting sessions',
-        available: 300,
-        perks: ["Chef's table", 'Wine pairing', 'Gift bag'],
-      },
+    title: 'Digital Art Rave',
+    date: 'March 22, 2024',
+    time: '10:00 PM',
+    location: 'Brooklyn Warehouse, NYC',
+    fullAddress: '325 Kent Ave, Brooklyn, NY 11249',
+    price: 48,
+    image: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=800&h=500&fit=crop',
+    attendees: 800,
+    category: 'Art & Culture',
+    available: 0,
+    total: 200,
+    description: 'A unique fusion of digital art and underground music. Experience immersive projections and live visual art sets by renowned digital artists alongside curated electronic beats.\n\nThis sold-out event has become the talk of NYC art and nightlife circles.',
+    organizer: 'Neon Collective',
+    isVerifiedOrganizer: true,
+    tags: ['Digital Art', 'Immersive', 'Electronic', 'NYC'],
+    amenities: ['Art Installations', 'Full Bar', 'Coat Check', 'Photo Ops'],
+    tiers: [
+      { id: 'general', name: 'General Admission', price: 48, perks: ['Event access', 'Art installations'] },
     ],
-    featured: false,
-    tags: ['Food', 'Culture', 'Lagos'],
   },
   {
     id: '3',
-    title: 'TEDxLagos 2026',
-    category: 'Tech',
-    date: '2026-10-03',
+    title: 'Tech Innovation Summit',
+    date: 'March 28, 2024',
     time: '9:00 AM',
-    venue: 'Landmark Event Centre',
-    city: 'Lagos',
-    country: 'Nigeria',
-    accentColor: '#EF4444',
-    description:
-      'Ideas worth spreading. Join thought leaders, innovators, and changemakers for a day of powerful talks, networking, and inspiration from across Africa and beyond.',
-    ticketTypes: [
-      { id: 'attendee', name: 'Attendee', price: 20000, currency: 'NGN', description: 'Full event access', available: 1000 },
-      {
-        id: 'speaker_plus',
-        name: 'Speaker Pass',
-        price: 50000,
-        currency: 'NGN',
-        description: 'Priority seating + speaker dinner',
-        available: 50,
-        perks: ['Speaker dinner', 'Networking session', 'Recording access'],
-      },
+    location: 'Silicon Valley Convention Center',
+    fullAddress: '150 W San Carlos St, San Jose, CA 95113',
+    price: 240,
+    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=500&fit=crop',
+    attendees: 1200,
+    category: 'Tech & Networking',
+    available: 300,
+    total: 400,
+    description: 'The premier tech conference bringing together founders, investors, and engineers. Three stages of keynotes, panels, and workshops covering AI, Web3, and the future of software.\n\nNetwork with 1,200+ tech professionals, attend masterclasses, and connect with top-tier investors.',
+    organizer: 'TechSV Events',
+    isVerifiedOrganizer: true,
+    tags: ['AI', 'Web3', 'Startups', 'Networking'],
+    amenities: ['Catered Lunch', 'Networking Lounge', 'Wi-Fi', 'Workshop Rooms', 'Investor Meetups'],
+    tiers: [
+      { id: 'general', name: 'General Admission', price: 240, perks: ['All keynotes', 'Networking access', 'Lunch included'] },
+      { id: 'vip', name: 'VIP', price: 480, perks: ['Premium seating', 'Investor dinner', 'Speaker meet & greet', 'All workshops'] },
     ],
-    featured: false,
-    tags: ['Tech', 'Innovation', 'Talks'],
   },
   {
     id: '4',
-    title: 'Lagos Fashion Week 2026',
-    category: 'Arts',
-    date: '2026-10-18',
-    time: '6:00 PM',
-    venue: 'Oriental Hotel',
-    city: 'Lagos',
-    country: 'Nigeria',
-    accentColor: '#8B5CF6',
-    description:
-      "Witness the future of African fashion. Three days of runway shows, exhibitions, and networking with Africa's top designers and creatives shaping global style.",
-    ticketTypes: [
-      { id: 'show', name: 'Show Ticket', price: 30000, currency: 'NGN', description: 'Access to all runway shows', available: 800 },
-      {
-        id: 'vip',
-        name: 'VIP All-Access',
-        price: 100000,
-        currency: 'NGN',
-        description: 'All-access + exclusive events',
-        available: 100,
-        perks: ['Front row seating', 'After-party', 'Designer meetups'],
-      },
+    title: 'Gaming Championship',
+    date: 'April 5, 2024',
+    time: '2:00 PM',
+    location: 'Los Angeles Arena',
+    fullAddress: '1111 S Figueroa St, Los Angeles, CA 90015',
+    price: 72,
+    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&h=500&fit=crop',
+    attendees: 5000,
+    category: 'Gaming',
+    available: 800,
+    total: 1000,
+    description: 'The biggest esports event on the West Coast. Watch the top teams battle it out across multiple titles — FPS, MOBA, and fighting games — with a $500K prize pool on the line.\n\nLive commentary, cosplay contest, merch booths, and gaming setups to try yourself.',
+    organizer: 'GameLA Productions',
+    isVerifiedOrganizer: false,
+    tags: ['Esports', 'FPS', 'MOBA', 'Competition'],
+    amenities: ['Gaming Zones', 'Food Court', 'Merch Stands', 'Cosplay Contest', 'Live Commentary'],
+    tiers: [
+      { id: 'general', name: 'General Admission', price: 72, perks: ['Event access', 'Viewing areas', 'Gaming zones'] },
+      { id: 'vip', name: 'VIP', price: 149, perks: ['Front-row seating', 'Player meet & greet', 'Exclusive merch', 'Gaming room access'] },
     ],
-    featured: false,
-    tags: ['Fashion', 'Design', 'Arts'],
   },
   {
     id: '5',
-    title: 'Burna Boy: African Giant Live',
-    category: 'Music',
-    date: '2026-11-01',
-    time: '7:00 PM',
-    venue: 'O2 Arena',
-    city: 'London',
-    country: 'UK',
-    accentColor: '#10B981',
-    description:
-      'Grammy Award-winning artist Burna Boy brings the African Giant world tour to London. An explosive show merging Afrobeats, Dancehall, and world music on the biggest stage.',
-    ticketTypes: [
-      { id: 'floor', name: 'Floor Standing', price: 120, currency: 'GBP', description: 'General floor access', available: 3000 },
-      { id: 'seated', name: 'Seated', price: 85, currency: 'GBP', description: 'Reserved seating', available: 5000 },
-      {
-        id: 'vip',
-        name: 'VIP Pit',
-        price: 350,
-        currency: 'GBP',
-        description: 'Closest to stage',
-        available: 200,
-        perks: ['Early entry', 'Exclusive merch', 'Soundcheck access'],
-      },
+    title: 'Beach Party Sunset',
+    date: 'April 12, 2024',
+    time: '6:00 PM',
+    location: 'Malibu Beach Club',
+    fullAddress: '22878 Pacific Coast Hwy, Malibu, CA 90265',
+    price: 60,
+    image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=500&fit=crop',
+    attendees: 300,
+    category: 'Beach Party',
+    available: 50,
+    total: 150,
+    description: 'Welcome the California summer with a legendary beachside celebration. Sunset cocktails, live DJ sets, fire dancers, and the best views in Malibu.\n\nOnly 150 spots available — this is an intimate, curated experience.',
+    organizer: 'Pacific Social',
+    isVerifiedOrganizer: true,
+    tags: ['Beach', 'Sunset', 'DJ', 'Malibu'],
+    amenities: ['Open Bar', 'Fire Show', 'Beach Access', 'Photo Booth', 'Catering'],
+    tiers: [
+      { id: 'general', name: 'General', price: 60, perks: ['Event access', 'Welcome drink', 'Beach access'] },
+      { id: 'vip', name: 'VIP Cabana', price: 120, perks: ['Private cabana', 'Bottle service', 'Priority access', 'Towel & amenity kit'] },
     ],
-    featured: false,
-    tags: ['Afrobeats', 'Live Music', 'International'],
   },
   {
     id: '6',
-    title: 'Naija Comedy Night',
-    category: 'Arts',
-    date: '2026-09-28',
-    time: '7:30 PM',
-    venue: 'Balmoral Convention Center',
-    city: 'Abuja',
-    country: 'Nigeria',
-    accentColor: '#EC4899',
-    description:
-      "Nigeria's biggest comedians under one roof. A night of non-stop laughter featuring top acts and 5 special guests — the perfect cure for everything.",
-    ticketTypes: [
-      { id: 'standard', name: 'Standard', price: 12000, currency: 'NGN', description: 'General seating', available: 1500 },
-      {
-        id: 'vip',
-        name: 'VIP',
-        price: 45000,
-        currency: 'NGN',
-        description: 'Premium seating + meet & greet',
-        available: 150,
-        perks: ['Front section', 'After-party', 'Signed merch'],
-      },
+    title: 'Fashion Week Gala',
+    date: 'April 20, 2024',
+    time: '8:00 PM',
+    location: 'Manhattan Design Center',
+    fullAddress: '315 Hudson St, New York, NY 10013',
+    price: 360,
+    image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&h=500&fit=crop',
+    attendees: 600,
+    category: 'Fashion',
+    available: 25,
+    total: 100,
+    description: 'The most exclusive fashion event of the season. Runway shows from emerging and established designers, a curated art exhibition, and a black-tie dinner reception.\n\nA celebration of style, creativity, and innovation attended by industry icons.',
+    organizer: 'NYFW Collective',
+    isVerifiedOrganizer: true,
+    tags: ['Fashion', 'Runway', 'Black Tie', 'NYC'],
+    amenities: ['Black-tie Dinner', 'Open Bar', 'Gift Bag', 'Valet Parking', 'Press Lounge'],
+    tiers: [
+      { id: 'general', name: 'General', price: 360, perks: ['Runway access', 'Exhibition', 'Dinner'] },
+      { id: 'vip', name: 'VIP Table', price: 750, perks: ['Front-row seats', 'Private table', 'Designer meet & greet', 'Gift bag', 'Press room access'] },
     ],
-    featured: false,
-    tags: ['Comedy', 'Entertainment', 'Abuja'],
-  },
-  {
-    id: '7',
-    title: 'Lagos International Marathon',
-    category: 'Sports',
-    date: '2026-10-25',
-    time: '6:00 AM',
-    venue: 'National Stadium',
-    city: 'Lagos',
-    country: 'Nigeria',
-    accentColor: '#3B82F6',
-    description:
-      "Join thousands of runners in Nigeria's premier marathon event. Categories for all fitness levels: 5K, 10K, Half Marathon, and Full Marathon.",
-    ticketTypes: [
-      { id: '5k', name: '5K Fun Run', price: 5000, currency: 'NGN', description: 'Beginner friendly', available: 5000 },
-      { id: 'half', name: 'Half Marathon', price: 10000, currency: 'NGN', description: '21.1km course', available: 3000 },
-      { id: 'full', name: 'Full Marathon', price: 15000, currency: 'NGN', description: '42.2km course', available: 1000 },
-    ],
-    featured: false,
-    tags: ['Running', 'Sports', 'Fitness'],
-  },
-  {
-    id: '8',
-    title: 'West Africa Blockchain Summit',
-    category: 'Tech',
-    date: '2026-11-14',
-    time: '9:00 AM',
-    venue: 'Landmark Event Centre',
-    city: 'Lagos',
-    country: 'Nigeria',
-    accentColor: '#06B6D4',
-    description:
-      'The biggest blockchain and Web3 conference in West Africa. Hear from industry leaders, explore emerging technologies, and connect with the ecosystem builders shaping tomorrow.',
-    ticketTypes: [
-      { id: 'delegate', name: 'Delegate', price: 35000, currency: 'NGN', description: 'Full 2-day access', available: 2000 },
-      {
-        id: 'vip',
-        name: 'VIP Delegate',
-        price: 80000,
-        currency: 'NGN',
-        description: 'Premium access + workshops',
-        available: 200,
-        perks: ['Workshop access', 'VIP dinner', 'Speaker access'],
-      },
-    ],
-    featured: false,
-    tags: ['Blockchain', 'Web3', 'Tech'],
   },
 ];
 
-const DEFAULT_USER: User = {
-  id: 'user_001',
-  name: 'Guest User',
-  email: 'guest@tick3t.app',
-};
+const MOCK_MARKETPLACE = [
+  { id: 'm1', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture' as const, tierName: 'General Admission', originalPrice: 48, resalePrice: 110, seller: 'alex_nyc', sellerVerified: true, quantity: 1, listed: '2 hours ago' },
+  { id: 'm2', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture' as const, tierName: 'General Admission', originalPrice: 48, resalePrice: 95, seller: 'nft_collector', sellerVerified: false, quantity: 2, listed: '5 hours ago' },
+  { id: 'm3', eventId: '1', eventTitle: 'Bass Drop Festival 2024', eventDate: 'March 15, 2024', eventLocation: 'Miami Beach Arena', eventImage: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=400&h=300&fit=crop', eventCategory: 'Music Festival' as const, tierName: 'VIP', originalPrice: 189, resalePrice: 220, seller: 'miami_party', sellerVerified: true, quantity: 1, listed: '1 day ago' },
+  { id: 'm4', eventId: '6', eventTitle: 'Fashion Week Gala', eventDate: 'April 20, 2024', eventLocation: 'Manhattan Design Center', eventImage: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=300&fit=crop', eventCategory: 'Fashion' as const, tierName: 'General', originalPrice: 360, resalePrice: 420, seller: 'style_trader', sellerVerified: true, quantity: 1, listed: '3 days ago' },
+];
 
-interface AppContextType {
+interface AppContextValue {
   events: Event[];
-  user: User;
-  purchasedTickets: PurchasedTicket[];
-  isLoading: boolean;
-  updateUser: (user: User) => Promise<void>;
-  purchaseTicket: (event: Event, ticketType: TicketType, quantity: number) => Promise<PurchasedTicket>;
+  tickets: PurchasedTicket[];
+  user: User | null;
+  marketplace: typeof MOCK_MARKETPLACE;
+  purchaseTicket: (event: Event, tierId: string, quantity: number) => Promise<PurchasedTicket>;
   getTicketById: (id: string) => PurchasedTicket | undefined;
   getEventById: (id: string) => Event | undefined;
+  updateUser: (u: Partial<User>) => void;
 }
 
-const AppContext = createContext<AppContextType | null>(null);
-
-function generateId(): string {
-  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-}
-
-function generateKeyCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = 'TK3T-';
-  for (let i = 0; i < 3; i++) {
-    let seg = '';
-    for (let j = 0; j < 4; j++) {
-      seg += chars[Math.floor(Math.random() * chars.length)];
-    }
-    code += seg;
-    if (i < 2) code += '-';
-  }
-  return code;
-}
+const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [purchasedTickets, setPurchasedTickets] = useState<PurchasedTicket[]>([]);
-  const [user, setUser] = useState<User>(DEFAULT_USER);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tickets, setTickets] = useState<PurchasedTicket[]>([]);
+  const [user, setUser] = useState<User>({
+    id: '1',
+    name: 'Guest User',
+    email: 'guest@tick3rt.com',
+    role: 'user',
+    isVerified: false,
+  });
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [ticketsData, userData] = await Promise.all([
-          AsyncStorage.getItem(TICKETS_KEY),
-          AsyncStorage.getItem(USER_KEY),
-        ]);
-        if (ticketsData) setPurchasedTickets(JSON.parse(ticketsData));
-        if (userData) setUser(JSON.parse(userData));
-      } catch {
-        // silently fail
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
+    AsyncStorage.getItem(TICKETS_KEY).then(raw => {
+      if (raw) setTickets(JSON.parse(raw));
+    });
+    AsyncStorage.getItem(USER_KEY).then(raw => {
+      if (raw) setUser(JSON.parse(raw));
+    });
   }, []);
 
-  const updateUser = useCallback(async (newUser: User) => {
-    setUser(newUser);
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(newUser));
+  const purchaseTicket = useCallback(async (event: Event, tierId: string, quantity: number): Promise<PurchasedTicket> => {
+    const tier = event.tiers.find(t => t.id === tierId)!;
+    const ticket: PurchasedTicket = {
+      id: Date.now().toString(),
+      eventId: event.id,
+      eventTitle: event.title,
+      eventDate: event.date,
+      eventTime: event.time,
+      eventLocation: event.location,
+      eventImage: event.image,
+      tierName: tier.name,
+      tierPrice: tier.price,
+      quantity,
+      totalPaid: tier.price * quantity,
+      purchasedAt: new Date().toISOString(),
+      keyCode: `T3-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${event.id}`,
+      holderName: user.name,
+      status: 'upcoming',
+      isNFT: true,
+    };
+    const updated = [...tickets, ticket];
+    setTickets(updated);
+    await AsyncStorage.setItem(TICKETS_KEY, JSON.stringify(updated));
+    return ticket;
+  }, [tickets, user]);
+
+  const getTicketById = useCallback((id: string) => tickets.find(t => t.id === id), [tickets]);
+  const getEventById = useCallback((id: string) => MOCK_EVENTS.find(e => e.id === id), []);
+
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser(prev => {
+      const updated = { ...prev, ...updates };
+      AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+      return updated;
+    });
   }, []);
-
-  const purchaseTicket = useCallback(
-    async (event: Event, ticketType: TicketType, quantity: number): Promise<PurchasedTicket> => {
-      const ticket: PurchasedTicket = {
-        id: generateId(),
-        eventId: event.id,
-        event,
-        ticketType,
-        quantity,
-        purchaseDate: new Date().toISOString(),
-        status: 'upcoming',
-        keyCode: generateKeyCode(),
-        holderName: user.name,
-        totalAmount: ticketType.price * quantity,
-      };
-      const updated = [...purchasedTickets, ticket];
-      setPurchasedTickets(updated);
-      await AsyncStorage.setItem(TICKETS_KEY, JSON.stringify(updated));
-      return ticket;
-    },
-    [purchasedTickets, user.name],
-  );
-
-  const getTicketById = useCallback(
-    (id: string) => purchasedTickets.find((t) => t.id === id),
-    [purchasedTickets],
-  );
-
-  const getEventById = useCallback(
-    (id: string) => MOCK_EVENTS.find((e) => e.id === id),
-    [],
-  );
 
   return (
-    <AppContext.Provider
-      value={{ events: MOCK_EVENTS, user, purchasedTickets, isLoading, updateUser, purchaseTicket, getTicketById, getEventById }}
-    >
+    <AppContext.Provider value={{ events: MOCK_EVENTS, tickets, user, marketplace: MOCK_MARKETPLACE, purchaseTicket, getTicketById, getEventById, updateUser }}>
       {children}
     </AppContext.Provider>
   );
@@ -335,6 +233,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 export function useApp() {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  if (!ctx) throw new Error('useApp must be used inside AppProvider');
   return ctx;
 }

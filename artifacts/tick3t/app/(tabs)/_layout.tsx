@@ -1,111 +1,93 @@
 import React from 'react';
-import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
-import { useColors } from '@/hooks/useColors';
-import { Feather } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
-import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
-import { SymbolView } from 'expo-symbols';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Colors } from '@/constants/colors';
 
-function NativeTabLayout() {
+function TabIcon({ focused, emoji, label }: { focused: boolean; emoji: string; label: string }) {
+  const C = Colors.dark;
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }} />
-        <Label>Discover</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="vault">
-        <Icon sf={{ default: 'lock.shield', selected: 'lock.shield.fill' }} />
-        <Label>Vault</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: 'person', selected: 'person.fill' }} />
-        <Label>Profile</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 2 }}>
+      <View style={{ fontSize: 22 }}>
+        {/* emoji placeholder handled by title */}
+      </View>
+    </View>
   );
 }
 
-function ClassicTabLayout() {
-  const colors = useColors();
-  const colorScheme = useColorScheme();
-  const safeAreaInsets = useSafeAreaInsets();
-  const isDark = colorScheme === 'dark';
-  const isIOS = Platform.OS === 'ios';
-  const isWeb = Platform.OS === 'web';
+export default function TabLayout() {
+  const C = Colors.dark;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarActiveTintColor: C.primary,
+        tabBarInactiveTintColor: C.tabIconDefault,
         tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: isIOS ? 'transparent' : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: colors.border,
-          elevation: 0,
-          paddingBottom: safeAreaInsets.bottom,
-          ...(isWeb ? { height: 84 } : {}),
+          backgroundColor: C.card,
+          borderTopColor: C.border,
+          borderTopWidth: 1,
+          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          paddingTop: 8,
         },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
-          ) : null,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+          letterSpacing: 0.3,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Discover',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="square.grid.2x2" tintColor={color} size={22} />
-            ) : (
-              <Feather name="compass" size={22} color={color} />
-            ),
+          tabBarIcon: ({ color }) => (
+            <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: color, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+              </View>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="marketplace"
+        options={{
+          title: 'Marketplace',
+          tabBarIcon: ({ color, size }) => (
+            <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 18, height: 14, borderRadius: 3, borderWidth: 2, borderColor: color }} />
+              <View style={{ position: 'absolute', bottom: 0, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="vault"
         options={{
           title: 'Vault',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="lock.shield" tintColor={color} size={22} />
-            ) : (
-              <Feather name="shield" size={22} color={color} />
-            ),
+          tabBarIcon: ({ color }) => (
+            <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 16, height: 14, borderRadius: 3, borderWidth: 2, borderColor: color, marginTop: 3 }} />
+              <View style={{ width: 10, height: 6, borderRadius: 3, borderWidth: 2, borderColor: color, marginBottom: 2 }} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person" tintColor={color} size={22} />
-            ) : (
-              <Feather name="user" size={22} color={color} />
-            ),
+          tabBarIcon: ({ color }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: color, marginBottom: 2 }} />
+              <View style={{ width: 20, height: 8, borderRadius: 6, borderWidth: 2, borderColor: color }} />
+            </View>
+          ),
         }}
       />
     </Tabs>
   );
-}
-
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
 }

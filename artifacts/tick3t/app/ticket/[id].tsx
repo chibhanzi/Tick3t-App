@@ -1,343 +1,205 @@
 import React from 'react';
 import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  View, Text, ScrollView, StyleSheet, Pressable, Image, SafeAreaView, Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
-import { useColors } from '@/hooks/useColors';
+import { Colors } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
-import { formatCurrency, formatFullDate, formatPurchaseDate } from '@/utils/format';
+import { formatPurchaseDate } from '@/utils/format';
 
 export default function TicketDetailScreen() {
+  const C = Colors.dark;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { getTicketById } = useApp();
-  const ticket = getTicketById(id);
-
-  const topPadding = Platform.OS === 'web' ? 67 : insets.top;
-  const bottomPadding = Platform.OS === 'web' ? 34 : insets.bottom;
+  const ticket = getTicketById(id ?? '');
 
   if (!ticket) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.closeBtn, { top: topPadding + 8, backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Ionicons name="close" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.errorText, { color: colors.foreground }]}>Ticket not found</Text>
-      </View>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <Pressable style={styles.closeBtn} onPress={() => router.back()}>
+          <Text style={{ color: C.text, fontSize: 24 }}>✕</Text>
+        </Pressable>
+        <View style={styles.notFound}>
+          <Text style={[styles.notFoundText, { color: C.text }]}>Ticket not found</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  const accentColor = ticket.event.accentColor;
-  const qrData = JSON.stringify({ key: ticket.keyCode, id: ticket.id, event: ticket.event.id });
+  const upcoming = ticket.status === 'upcoming';
 
-  const statusColor =
-    ticket.status === 'upcoming' ? colors.primary : ticket.status === 'active' ? '#22C55E' : colors.mutedForeground;
-  const statusLabel =
-    ticket.status === 'upcoming' ? 'Upcoming' : ticket.status === 'active' ? 'Active' : 'Used';
+  const qrData = JSON.stringify({
+    keyCode: ticket.keyCode,
+    event: ticket.eventTitle,
+    tier: ticket.tierName,
+    holder: ticket.holderName,
+    qty: ticket.quantity,
+    isNFT: ticket.isNFT,
+  });
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Close button */}
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={[styles.closeBtn, { top: topPadding + 8, backgroundColor: colors.card, borderColor: colors.border }]}
-      >
-        <Ionicons name="close" size={20} color={colors.foreground} />
-      </TouchableOpacity>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable style={styles.closeBtn} onPress={() => router.back()}>
+          <Text style={[styles.closeText, { color: C.textSecondary }]}>✕ Close</Text>
+        </Pressable>
+        <Pressable onPress={() => Alert.alert('Share', 'Ticket sharing coming soon!')}>
+          <Text style={[styles.shareText, { color: C.primary }]}>Share ↗</Text>
+        </Pressable>
+      </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingTop: topPadding + 56, paddingBottom: bottomPadding + 30, paddingHorizontal: 16 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Ticket card */}
-        <View style={[styles.ticketCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {/* Top color stripe */}
-          <View style={[styles.topStripe, { backgroundColor: accentColor }]} />
-
-          {/* Event header */}
-          <View style={styles.ticketHeader}>
-            <View style={[styles.catBadge, { backgroundColor: accentColor + '22' }]}>
-              <Text style={[styles.catBadgeText, { color: accentColor }]}>{ticket.event.category}</Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
+        <View style={[styles.ticketCard, { backgroundColor: C.card, borderColor: C.border }]}>
+          {/* Event image */}
+          <View style={styles.imageSection}>
+            <Image source={{ uri: ticket.eventImage }} style={styles.eventImage} />
+            <View style={styles.imageOverlay} />
+            <View style={styles.imageContent}>
+              <View style={styles.imageBadges}>
+                <View style={[styles.badge, { backgroundColor: upcoming ? C.primary + 'CC' : '#475569CC' }]}>
+                  <Text style={styles.badgeText}>{upcoming ? '🎟 Upcoming' : '✓ Attended'}</Text>
+                </View>
+                {ticket.isNFT && (
+                  <View style={[styles.badge, { backgroundColor: '#6366F1CC' }]}>
+                    <Text style={styles.badgeText}>⬡ NFT</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.eventTitle}>{ticket.eventTitle}</Text>
+              <Text style={styles.eventSub}>{ticket.eventDate} · {ticket.eventTime}</Text>
+              <Text style={styles.eventSub}>📍 {ticket.eventLocation}</Text>
             </View>
           </View>
-
-          <Text style={[styles.eventTitle, { color: colors.foreground }]}>{ticket.event.title}</Text>
-          <Text style={[styles.venueLine, { color: colors.mutedForeground }]}>
-            {ticket.event.venue} · {ticket.event.city}
-          </Text>
 
           {/* Perforation */}
-          <View style={styles.perfoRow}>
-            <View style={[styles.perfoCircle, { backgroundColor: colors.background, left: -20 }]} />
-            <View style={[styles.perfoLine, { borderColor: colors.border }]} />
-            <View style={[styles.perfoCircle, { backgroundColor: colors.background, right: -20 }]} />
+          <View style={[styles.perforation, { backgroundColor: C.background }]}>
+            <View style={[styles.circle, styles.circleLeft, { backgroundColor: C.background }]} />
+            <View style={[styles.dashLine, { borderColor: C.border }]} />
+            <View style={[styles.circle, styles.circleRight, { backgroundColor: C.background }]} />
           </View>
 
-          {/* QR Code */}
+          {/* QR section */}
           <View style={styles.qrSection}>
-            <Text style={[styles.qrLabel, { color: colors.mutedForeground }]}>Scan at the door</Text>
-            <View style={[styles.qrWrap, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
+            <Text style={[styles.presentLabel, { color: C.textMuted }]}>PRESENT AT ENTRY</Text>
+            <View style={[styles.qrWrapper, { backgroundColor: '#fff', borderColor: C.border }]}>
               <QRCode
                 value={qrData}
                 size={200}
-                backgroundColor="#FFFFFF"
-                color="#000000"
+                color="#050C18"
+                backgroundColor="#fff"
               />
             </View>
-            <Text style={[styles.keyCode, { color: colors.foreground }]}>{ticket.keyCode}</Text>
-            <Text style={[styles.keyCodeSub, { color: colors.mutedForeground }]}>Digital Key Code</Text>
+            <Pressable onPress={() => Alert.alert('Key Code', ticket.keyCode)}>
+              <Text style={[styles.keyCode, { color: C.textMuted }]}>{ticket.keyCode}</Text>
+            </Pressable>
+            <Text style={[styles.tapHint, { color: C.textMuted }]}>Tap code to copy</Text>
           </View>
 
-          {/* Perforation bottom */}
-          <View style={styles.perfoRow}>
-            <View style={[styles.perfoCircle, { backgroundColor: colors.background, left: -20 }]} />
-            <View style={[styles.perfoLine, { borderColor: colors.border }]} />
-            <View style={[styles.perfoCircle, { backgroundColor: colors.background, right: -20 }]} />
+          {/* Perforation */}
+          <View style={[styles.perforation, { backgroundColor: C.background }]}>
+            <View style={[styles.circle, styles.circleLeft, { backgroundColor: C.background }]} />
+            <View style={[styles.dashLine, { borderColor: C.border }]} />
+            <View style={[styles.circle, styles.circleRight, { backgroundColor: C.background }]} />
           </View>
 
-          {/* Ticket details grid */}
-          <View style={styles.detailGrid}>
-            <View style={styles.detailCell}>
-              <Text style={[styles.detailCellLabel, { color: colors.mutedForeground }]}>Date</Text>
-              <Text style={[styles.detailCellValue, { color: colors.foreground }]}>{formatFullDate(ticket.event.date)}</Text>
-            </View>
-            <View style={styles.detailCell}>
-              <Text style={[styles.detailCellLabel, { color: colors.mutedForeground }]}>Time</Text>
-              <Text style={[styles.detailCellValue, { color: colors.foreground }]}>{ticket.event.time}</Text>
-            </View>
-            <View style={styles.detailCell}>
-              <Text style={[styles.detailCellLabel, { color: colors.mutedForeground }]}>Ticket Type</Text>
-              <Text style={[styles.detailCellValue, { color: colors.foreground }]}>{ticket.ticketType.name}</Text>
-            </View>
-            <View style={styles.detailCell}>
-              <Text style={[styles.detailCellLabel, { color: colors.mutedForeground }]}>Holder</Text>
-              <Text style={[styles.detailCellValue, { color: colors.foreground }]}>{ticket.holderName}</Text>
-            </View>
-            <View style={styles.detailCell}>
-              <Text style={[styles.detailCellLabel, { color: colors.mutedForeground }]}>Quantity</Text>
-              <Text style={[styles.detailCellValue, { color: colors.foreground }]}>x{ticket.quantity}</Text>
-            </View>
-            <View style={styles.detailCell}>
-              <Text style={[styles.detailCellLabel, { color: colors.mutedForeground }]}>Total Paid</Text>
-              <Text style={[styles.detailCellValue, { color: accentColor }]}>
-                {formatCurrency(ticket.totalAmount, ticket.ticketType.currency)}
-              </Text>
-            </View>
+          {/* Details grid */}
+          <View style={styles.detailsGrid}>
+            {[
+              { label: 'HOLDER', value: ticket.holderName },
+              { label: 'TIER', value: ticket.tierName },
+              { label: 'QUANTITY', value: `×${ticket.quantity}` },
+              { label: 'TOTAL PAID', value: `$${ticket.totalPaid}` },
+              { label: 'PURCHASED', value: formatPurchaseDate(ticket.purchasedAt) },
+              { label: 'STATUS', value: upcoming ? 'Active' : 'Used' },
+            ].map((row, i) => (
+              <View key={i} style={[styles.detailRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                <Text style={[styles.detailLabel, { color: C.textMuted }]}>{row.label}</Text>
+                <Text style={[styles.detailValue, { color: C.text }]}>{row.value}</Text>
+              </View>
+            ))}
           </View>
+        </View>
 
-          {/* Purchase date footer */}
-          <View style={[styles.ticketFooter, { borderTopColor: colors.border }]}>
-            <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
-            <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-              Secured {formatPurchaseDate(ticket.purchaseDate)} · tick3t
+        {/* NFT info */}
+        {ticket.isNFT && (
+          <View style={[styles.nftCard, { backgroundColor: '#6366F115', borderColor: '#6366F140' }]}>
+            <Text style={[styles.nftTitle, { color: '#818CF8' }]}>⬡ NFT Ticket on TON Blockchain</Text>
+            <Text style={[styles.nftDesc, { color: C.textSecondary }]}>
+              This ticket is a verified NFT secured on the TON blockchain. It is unique, tamper-proof, and transferable. Connect your TON wallet to claim full ownership.
             </Text>
+            <Pressable
+              style={[styles.walletBtn, { borderColor: '#6366F1' }]}
+              onPress={() => Alert.alert('Connect Wallet', 'TON wallet integration coming soon.')}
+            >
+              <Text style={[styles.walletBtnText, { color: '#818CF8' }]}>Connect TON Wallet</Text>
+            </Pressable>
           </View>
+        )}
+
+        {/* Payment info */}
+        <View style={[styles.payCard, { backgroundColor: C.card, borderColor: C.border }]}>
+          <Text style={[styles.payTitle, { color: C.textMuted }]}>🔒 Payment secured via Paynow</Text>
+          <Text style={[styles.payDesc, { color: C.textMuted }]}>Your transaction is encrypted and verified. Receipt sent to {ticket.holderName}.</Text>
         </View>
 
-        {/* Present at door note */}
-        <View style={[styles.presentNote, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
-          <Ionicons name="information-circle" size={18} color={colors.primary} />
-          <Text style={[styles.presentText, { color: colors.primary }]}>
-            Present this QR code at the venue entrance for entry
-          </Text>
-        </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  closeBtn: {
-    position: 'absolute',
-    right: 16,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  errorText: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginTop: 120,
-  },
-  ticketCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  topStripe: {
-    height: 6,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    paddingBottom: 8,
-  },
-  catBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  catBadgeText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.5,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  eventTitle: {
-    fontSize: 22,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-    paddingHorizontal: 16,
-    lineHeight: 28,
-  },
-  venueLine: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    paddingHorizontal: 16,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  perfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-    overflow: 'visible',
-  },
-  perfoCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    position: 'absolute',
-    zIndex: 2,
-  },
-  perfoLine: {
-    flex: 1,
-    borderBottomWidth: 1,
-    borderStyle: 'dashed',
-    marginHorizontal: 12,
-  },
-  qrSection: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-  },
-  qrLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    marginBottom: 16,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  qrWrap: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  keyCode: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 2,
-  },
-  keyCodeSub: {
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  detailGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 0,
-  },
-  detailCell: {
-    width: '50%',
-    paddingVertical: 10,
-    paddingRight: 8,
-  },
-  detailCellLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-    marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  detailCellValue: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  ticketFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderTopWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  footerText: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-  },
-  presentNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  presentText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    lineHeight: 20,
-  },
+  safe: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
+  closeBtn: {},
+  closeText: { fontSize: 15, fontWeight: '600' },
+  shareText: { fontSize: 15, fontWeight: '700' },
+
+  scroll: { paddingHorizontal: 20, paddingBottom: 20 },
+
+  ticketCard: { borderRadius: 20, overflow: 'hidden', borderWidth: 1, marginBottom: 16 },
+
+  imageSection: { height: 200, position: 'relative' },
+  eventImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,12,24,0.65)' },
+  imageContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18 },
+  imageBadges: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  eventTitle: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: -0.3, marginBottom: 4 },
+  eventSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 2 },
+
+  perforation: { flexDirection: 'row', alignItems: 'center', height: 24 },
+  circle: { width: 24, height: 24, borderRadius: 12 },
+  circleLeft: { marginLeft: -12 },
+  circleRight: { marginRight: -12 },
+  dashLine: { flex: 1, borderTopWidth: 2, borderStyle: 'dashed', marginHorizontal: 6 },
+
+  qrSection: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20 },
+  presentLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 },
+  qrWrapper: { padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 16 },
+  keyCode: { fontFamily: 'monospace', fontSize: 14, letterSpacing: 2, marginBottom: 4 },
+  tapHint: { fontSize: 10, letterSpacing: 0.5 },
+
+  detailsGrid: { paddingHorizontal: 20, paddingBottom: 20 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
+  detailLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+  detailValue: { fontSize: 14, fontWeight: '600' },
+
+  nftCard: { borderRadius: 14, padding: 16, borderWidth: 1, marginBottom: 12 },
+  nftTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  nftDesc: { fontSize: 13, lineHeight: 20, marginBottom: 14 },
+  walletBtn: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, alignSelf: 'flex-start' },
+  walletBtnText: { fontSize: 13, fontWeight: '700' },
+
+  payCard: { borderRadius: 12, padding: 14, borderWidth: 1 },
+  payTitle: { fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  payDesc: { fontSize: 12, lineHeight: 18 },
+
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  notFoundText: { fontSize: 18 },
 });

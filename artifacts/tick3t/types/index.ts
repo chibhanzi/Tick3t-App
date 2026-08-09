@@ -1,46 +1,81 @@
-export type EventCategory = 'All' | 'Music' | 'Sports' | 'Arts' | 'Tech' | 'Food';
+export type EventCategory =
+  | 'All'
+  | 'Music Festival'
+  | 'Art & Culture'
+  | 'Tech & Networking'
+  | 'Gaming'
+  | 'Beach Party'
+  | 'Fashion';
 
-export interface TicketType {
+export interface TicketTier {
   id: string;
   name: string;
   price: number;
-  currency: string;
-  description: string;
-  available: number;
-  perks?: string[];
+  perks: string[];
 }
 
 export interface Event {
   id: string;
   title: string;
-  category: Exclude<EventCategory, 'All'>;
   date: string;
   time: string;
-  venue: string;
-  city: string;
-  country: string;
-  accentColor: string;
+  location: string;
+  fullAddress: string;
+  price: number; // lowest tier price
+  image: string;
+  attendees: number;
+  category: EventCategory;
+  available: number;
+  total: number;
   description: string;
-  ticketTypes: TicketType[];
-  featured?: boolean;
+  organizer: string;
+  isVerifiedOrganizer: boolean;
   tags: string[];
+  amenities: string[];
+  tiers: TicketTier[];
+  featured?: boolean;
 }
 
 export interface PurchasedTicket {
   id: string;
   eventId: string;
-  event: Event;
-  ticketType: TicketType;
+  eventTitle: string;
+  eventDate: string;
+  eventTime: string;
+  eventLocation: string;
+  eventImage: string;
+  tierName: string;
+  tierPrice: number;
   quantity: number;
-  purchaseDate: string;
-  status: 'upcoming' | 'active' | 'used';
+  totalPaid: number;
+  purchasedAt: string;
   keyCode: string;
   holderName: string;
-  totalAmount: number;
+  status: 'upcoming' | 'past' | 'cancelled';
+  isNFT: boolean;
+}
+
+export interface MarketplaceListing {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  eventImage: string;
+  eventCategory: EventCategory;
+  tierName: string;
+  originalPrice: number;
+  resalePrice: number;
+  seller: string;
+  sellerVerified: boolean;
+  quantity: number;
+  listed: string;
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
+  role: 'user' | 'organizer';
+  isVerified: boolean;
 }
