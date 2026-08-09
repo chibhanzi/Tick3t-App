@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, TextInput,
-  SafeAreaView, Alert,
+  View, Text, ScrollView, StyleSheet, Pressable, TextInput, Alert,
 } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 
 export default function ProfileScreen() {
-  const C = Colors.dark;
+  const { colors: C, isDark, toggleTheme } = useTheme();
   const { user, tickets, updateUser } = useApp();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? '');
@@ -17,10 +17,7 @@ export default function ProfileScreen() {
   const past = tickets.filter(t => t.status === 'past').length;
   const initials = (user?.name ?? 'G').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
-  const handleSave = () => {
-    updateUser({ name, email });
-    setEditing(false);
-  };
+  const handleSave = () => { updateUser({ name, email }); setEditing(false); };
 
   const menuItems = [
     { icon: '🎟', label: 'My Tickets', value: `${tickets.length} total`, onPress: () => {} },
@@ -29,12 +26,11 @@ export default function ProfileScreen() {
     { icon: '🔒', label: 'Security', value: '', onPress: () => Alert.alert('Security', 'Two-factor authentication and account security settings.') },
     { icon: '📱', label: 'Paynow', value: 'Not linked', onPress: () => Alert.alert('Paynow', 'Link your Paynow account for secure, seamless payments.') },
     { icon: '🏷', label: 'Refer Friends', value: '', onPress: () => Alert.alert('Referrals', 'Share your referral code to earn free tickets!') },
-    { icon: '⚙️', label: 'Settings', value: '', onPress: () => {} },
-    { icon: '❓', label: 'Help & Support', value: '', onPress: () => Alert.alert('Support', 'Contact us at support@tick3rt.com') },
+    { icon: '❓', label: 'Help & Support', value: '', onPress: () => Alert.alert('Support', 'Contact us at support@tick3t.com') },
   ];
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -58,17 +54,13 @@ export default function ProfileScreen() {
             <View style={styles.editFields}>
               <TextInput
                 style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]}
-                value={name}
-                onChangeText={setName}
-                placeholder="Display name"
-                placeholderTextColor={C.textMuted}
+                value={name} onChangeText={setName}
+                placeholder="Display name" placeholderTextColor={C.textMuted}
               />
               <TextInput
                 style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Email"
-                placeholderTextColor={C.textMuted}
+                value={email} onChangeText={setEmail}
+                placeholder="Email" placeholderTextColor={C.textMuted}
                 keyboardType="email-address"
               />
             </View>
@@ -108,7 +100,7 @@ export default function ProfileScreen() {
         {/* Upgrade banner */}
         <Pressable
           style={[styles.upgradeBanner, { backgroundColor: C.primary + '15', borderColor: C.primary + '40' }]}
-          onPress={() => Alert.alert('Become an Organizer', 'Create and manage your own events on Tick3rt.\n\nOrganizer upgrade coming soon!')}
+          onPress={() => Alert.alert('Become an Organizer', 'Create and manage your own events on Tick3t.\n\nOrganizer upgrade coming soon!')}
         >
           <View>
             <Text style={[styles.upgradeTitle, { color: C.primary }]}>Become an Organizer</Text>
@@ -116,6 +108,36 @@ export default function ProfileScreen() {
           </View>
           <Text style={[styles.upgradeArrow, { color: C.primary }]}>→</Text>
         </Pressable>
+
+        {/* ── Theme Toggle ── */}
+        <View style={[styles.themeCard, { backgroundColor: C.card, borderColor: C.border }]}>
+          <View style={styles.themeRow}>
+            <View style={styles.themeLeft}>
+              <Text style={styles.themeIcon}>{isDark ? '🌙' : '☀️'}</Text>
+              <View>
+                <Text style={[styles.themeLabel, { color: C.text }]}>
+                  {isDark ? 'Dark Mode' : 'Light Mode'}
+                </Text>
+                <Text style={[styles.themeDesc, { color: C.textMuted }]}>
+                  {isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+                </Text>
+              </View>
+            </View>
+            {/* Toggle pill */}
+            <Pressable
+              onPress={toggleTheme}
+              style={[
+                styles.togglePill,
+                { backgroundColor: isDark ? C.primary : C.border },
+              ]}
+            >
+              <View style={[
+                styles.toggleKnob,
+                { transform: [{ translateX: isDark ? 20 : 0 }] },
+              ]} />
+            </Pressable>
+          </View>
+        </View>
 
         {/* Menu */}
         <View style={[styles.menuCard, { backgroundColor: C.card, borderColor: C.border }]}>
@@ -137,7 +159,7 @@ export default function ProfileScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: C.textMuted }]}>Tick3rt · Digital Event Key Platform</Text>
+          <Text style={[styles.footerText, { color: C.textMuted }]}>Tick3t · Digital Event Key Platform</Text>
           <Text style={[styles.footerText, { color: C.textMuted }]}>v1.0.0 · NFT powered by TON · Payments by Paynow</Text>
         </View>
 
@@ -176,6 +198,22 @@ const styles = StyleSheet.create({
   upgradeTitle: { fontSize: 15, fontWeight: '800', marginBottom: 3 },
   upgradeDesc: { fontSize: 12 },
   upgradeArrow: { fontSize: 22, fontWeight: '700' },
+
+  // Theme toggle
+  themeCard: { marginHorizontal: 20, marginBottom: 16, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  themeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  themeLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  themeIcon: { fontSize: 22 },
+  themeLabel: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  themeDesc: { fontSize: 12 },
+  togglePill: {
+    width: 46, height: 26, borderRadius: 13,
+    justifyContent: 'center', paddingHorizontal: 3,
+  },
+  toggleKnob: {
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#fff',
+  },
 
   menuCard: { marginHorizontal: 20, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
   menuRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },

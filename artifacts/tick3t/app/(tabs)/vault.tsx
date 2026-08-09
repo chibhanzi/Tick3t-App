@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, Image,
-  SafeAreaView, FlatList, Alert,
+  View, Text, StyleSheet, Pressable, Image, FlatList, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 import { PurchasedTicket } from '@/types';
 import ListForResaleModal from '@/components/ListForResaleModal';
@@ -20,7 +20,7 @@ function VaultTicketCard({
   isListed: boolean;
   onListResale: (t: PurchasedTicket) => void;
 }) {
-  const C = Colors.dark;
+  const { colors: C } = useTheme();
   const router = useRouter();
   const upcoming = ticket.status === 'upcoming';
 
@@ -105,17 +105,13 @@ function VaultTicketCard({
 }
 
 export default function VaultScreen() {
-  const C = Colors.dark;
+  const { colors: C } = useTheme();
   const { tickets, listedTicketIds, addMarketplaceListing } = useApp();
   const [filter, setFilter] = useState<Filter>('upcoming');
   const [modalTicket, setModalTicket] = useState<PurchasedTicket | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
 
   const filtered = tickets.filter(t => t.status === filter);
-
-  const handleListResale = (ticket: PurchasedTicket) => {
-    setModalTicket(ticket);
-  };
 
   const handleConfirmListing = (ticket: PurchasedTicket, price: number) => {
     addMarketplaceListing(ticket, price);
@@ -125,7 +121,7 @@ export default function VaultScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -190,7 +186,7 @@ export default function VaultScreen() {
             <VaultTicketCard
               ticket={item}
               isListed={listedTicketIds.has(item.id)}
-              onListResale={handleListResale}
+              onListResale={setModalTicket}
             />
           )}
           contentContainerStyle={styles.list}

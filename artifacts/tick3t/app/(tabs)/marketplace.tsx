@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, Image, Alert, SafeAreaView,
+  View, Text, ScrollView, StyleSheet, Pressable, Image, Alert,
 } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 
 const FILTERS = ['All', 'Music Festival', 'Art & Culture', 'Tech & Networking', 'Gaming', 'Fashion'];
 
 export default function MarketplaceScreen() {
-  const C = Colors.dark;
+  const { colors: C } = useTheme();
   const { marketplace } = useApp();
   const [active, setActive] = useState('All');
 
@@ -30,7 +31,7 @@ export default function MarketplaceScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View>

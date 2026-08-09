@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/context/ThemeContext';
 import { Event } from '@/types';
 import { getAvailabilityPercent } from '@/utils/format';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_CARD_WIDTH = (SCREEN_WIDTH - 36 - 10) / 2; // matches 2-col grid gap
+const GRID_CARD_WIDTH = (SCREEN_WIDTH - 36 - 10) / 2;
 
 interface EventCardProps {
   event: Event;
@@ -15,7 +15,7 @@ interface EventCardProps {
 
 export default function EventCard({ event, variant = 'list' }: EventCardProps) {
   const router = useRouter();
-  const C = Colors.dark;
+  const { colors: C } = useTheme();
   const soldOut = event.available === 0;
   const availPct = getAvailabilityPercent(event.available, event.total);
   const almostGone = !soldOut && availPct >= 70;
@@ -57,17 +57,15 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
     );
   }
 
-  // ── GRID (2-column, matches web EventCard layout) ─────────────────────────
+  // ── GRID (2-column) ───────────────────────────────────────────────────────
   if (variant === 'grid') {
     return (
       <Pressable
         style={[styles.gridCard, { backgroundColor: C.card, borderColor: C.border }]}
         onPress={() => router.push(`/event/${event.id}`)}
       >
-        {/* Image */}
         <View style={styles.gridImageWrap}>
           <Image source={{ uri: event.image }} style={styles.gridImage} />
-          {/* Top-left badges */}
           <View style={styles.gridBadgeRow}>
             <View style={[styles.smallBadge, { backgroundColor: 'rgba(5,12,24,0.75)' }]}>
               <Text style={styles.smallBadgeText}>{event.category}</Text>
@@ -78,7 +76,6 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
               </View>
             )}
           </View>
-          {/* Sold Out overlay */}
           {soldOut && (
             <View style={styles.soldOutOverlay}>
               <View style={styles.soldOutBadge}>
@@ -87,16 +84,10 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
             </View>
           )}
         </View>
-
-        {/* Body */}
         <View style={styles.gridBody}>
           <Text style={[styles.gridTitle, { color: C.text }]} numberOfLines={2}>{event.title}</Text>
-          <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>
-            📅 {event.date}
-          </Text>
-          <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>
-            📍 {event.location}
-          </Text>
+          <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>📅 {event.date}</Text>
+          <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>📍 {event.location}</Text>
           <View style={styles.gridFooter}>
             <Text style={[styles.gridAttendees, { color: C.textMuted }]}>
               {event.attendees >= 1000 ? `${(event.attendees / 1000).toFixed(1)}k` : event.attendees} going
@@ -105,13 +96,9 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
               {soldOut ? 'Resale' : `$${event.price}`}
             </Text>
           </View>
-          {/* Availability bar */}
           {!soldOut && (
             <View style={[styles.availBar, { backgroundColor: C.border }]}>
-              <View style={[
-                styles.availFill,
-                { width: `${availPct}%`, backgroundColor: almostGone ? '#EF4444' : C.primary },
-              ]} />
+              <View style={[styles.availFill, { width: `${availPct}%`, backgroundColor: almostGone ? '#EF4444' : C.primary }]} />
             </View>
           )}
         </View>
@@ -181,11 +168,8 @@ const styles = StyleSheet.create({
   priceChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   priceChipText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
-  // Grid (2-col)
-  gridCard: {
-    width: GRID_CARD_WIDTH,
-    borderRadius: 14, overflow: 'hidden', borderWidth: 1,
-  },
+  // Grid
+  gridCard: { width: GRID_CARD_WIDTH, borderRadius: 14, overflow: 'hidden', borderWidth: 1 },
   gridImageWrap: { position: 'relative', height: 120 },
   gridImage: { width: '100%', height: '100%' },
   gridBadgeRow: { position: 'absolute', top: 6, left: 6, flexDirection: 'row', gap: 4 },

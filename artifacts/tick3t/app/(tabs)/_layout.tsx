@@ -1,22 +1,10 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, View } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Colors } from '@/constants/colors';
-
-function TabIcon({ focused, emoji, label }: { focused: boolean; emoji: string; label: string }) {
-  const C = Colors.dark;
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 2 }}>
-      <View style={{ fontSize: 22 }}>
-        {/* emoji placeholder handled by title */}
-      </View>
-    </View>
-  );
-}
+import { useTheme } from '@/context/ThemeContext';
 
 export default function TabLayout() {
-  const C = Colors.dark;
+  const { colors: C } = useTheme();
 
   return (
     <Tabs
@@ -56,7 +44,7 @@ export default function TabLayout() {
         name="marketplace"
         options={{
           title: 'Marketplace',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
               <View style={{ width: 18, height: 14, borderRadius: 3, borderWidth: 2, borderColor: color }} />
               <View style={{ position: 'absolute', bottom: 0, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
