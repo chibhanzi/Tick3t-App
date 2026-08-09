@@ -185,6 +185,6 @@ const styles = StyleSheet.create({
   menuValue: { fontSize: 13 },
   menuArrow: { fontSize: 20 },
 
-  footer: { alignItems: 'center', paddingTop: 24, gap: 4 },
+  footer: { alignItems: 'center', paddingTop: 24, gap: 6 },
   footerText: { fontSize: 11 },
 });

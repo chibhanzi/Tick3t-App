@@ -148,28 +148,34 @@ const MOCK_EVENTS: Event[] = [
   },
 ];
 
-const MOCK_MARKETPLACE = [
+export const INITIAL_MARKETPLACE = [
   { id: 'm1', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture' as const, tierName: 'General Admission', originalPrice: 48, resalePrice: 110, seller: 'alex_nyc', sellerVerified: true, quantity: 1, listed: '2 hours ago' },
   { id: 'm2', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture' as const, tierName: 'General Admission', originalPrice: 48, resalePrice: 95, seller: 'nft_collector', sellerVerified: false, quantity: 2, listed: '5 hours ago' },
   { id: 'm3', eventId: '1', eventTitle: 'Bass Drop Festival 2024', eventDate: 'March 15, 2024', eventLocation: 'Miami Beach Arena', eventImage: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=400&h=300&fit=crop', eventCategory: 'Music Festival' as const, tierName: 'VIP', originalPrice: 189, resalePrice: 220, seller: 'miami_party', sellerVerified: true, quantity: 1, listed: '1 day ago' },
   { id: 'm4', eventId: '6', eventTitle: 'Fashion Week Gala', eventDate: 'April 20, 2024', eventLocation: 'Manhattan Design Center', eventImage: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=300&fit=crop', eventCategory: 'Fashion' as const, tierName: 'General', originalPrice: 360, resalePrice: 420, seller: 'style_trader', sellerVerified: true, quantity: 1, listed: '3 days ago' },
 ];
 
+export type MarketplaceListing = typeof INITIAL_MARKETPLACE[0];
+
 interface AppContextValue {
   events: Event[];
   tickets: PurchasedTicket[];
   user: User | null;
-  marketplace: typeof MOCK_MARKETPLACE;
+  marketplace: MarketplaceListing[];
   purchaseTicket: (event: Event, tierId: string, quantity: number) => Promise<PurchasedTicket>;
   getTicketById: (id: string) => PurchasedTicket | undefined;
   getEventById: (id: string) => Event | undefined;
   updateUser: (u: Partial<User>) => void;
+  addMarketplaceListing: (ticket: PurchasedTicket, resalePrice: number) => void;
+  listedTicketIds: Set<string>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tickets, setTickets] = useState<PurchasedTicket[]>([]);
+  const [marketplace, setMarketplace] = useState<MarketplaceListing[]>(INITIAL_MARKETPLACE);
+  const [listedTicketIds, setListedTicketIds] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<User>({
     id: '1',
     name: 'Guest User',
@@ -224,8 +230,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const addMarketplaceListing = useCallback((ticket: PurchasedTicket, resalePrice: number) => {
+    const listing: MarketplaceListing = {
+      id: `user-${Date.now()}`,
+      eventId: ticket.eventId,
+      eventTitle: ticket.eventTitle,
+      eventDate: ticket.eventDate,
+      eventLocation: ticket.eventLocation,
+      eventImage: ticket.eventImage,
+      eventCategory: 'Music Festival' as const, // fallback; real lookup would use getEventById
+      tierName: ticket.tierName,
+      originalPrice: ticket.tierPrice,
+      resalePrice,
+      seller: user?.name ?? 'You',
+      sellerVerified: user?.isVerified ?? false,
+      quantity: ticket.quantity,
+      listed: 'Just now',
+    };
+    setMarketplace(prev => [listing, ...prev]);
+    setListedTicketIds(prev => new Set([...prev, ticket.id]));
+  }, [user]);
+
   return (
-    <AppContext.Provider value={{ events: MOCK_EVENTS, tickets, user, marketplace: MOCK_MARKETPLACE, purchaseTicket, getTicketById, getEventById, updateUser }}>
+    <AppContext.Provider value={{
+      events: MOCK_EVENTS, tickets, user, marketplace,
+      purchaseTicket, getTicketById, getEventById, updateUser,
+      addMarketplaceListing, listedTicketIds,
+    }}>
       {children}
     </AppContext.Provider>
   );

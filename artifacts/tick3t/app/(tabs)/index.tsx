@@ -6,6 +6,7 @@ import {
 import { Colors } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
 import EventCard from '@/components/EventCard';
+import Logo from '@/components/Logo';
 import { EventCategory } from '@/types';
 
 const CATEGORIES: EventCategory[] = ['All', 'Music Festival', 'Art & Culture', 'Tech & Networking', 'Gaming', 'Beach Party', 'Fashion'];
@@ -44,12 +45,7 @@ export default function DiscoverScreen() {
         <View style={[styles.stickyHeader, { backgroundColor: C.background }]}>
           {/* Branding row */}
           <View style={styles.brandRow}>
-            <View>
-              <Text style={[styles.brandName, { color: C.text }]}>
-                Tick<Text style={{ color: C.primary }}>3</Text>rt
-              </Text>
-              <Text style={[styles.brandTagline, { color: C.textMuted }]}>Discover · Own · Experience</Text>
-            </View>
+            <Logo size="md" />
             <View style={[styles.nftChip, { backgroundColor: '#6366F122', borderColor: '#6366F144' }]}>
               <Text style={[styles.nftChipText, { color: '#818CF8' }]}>⬡ NFT Tickets</Text>
             </View>
@@ -173,8 +169,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   stickyHeader: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
   brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  brandName: { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-  brandTagline: { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 },
   nftChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
   nftChipText: { fontSize: 12, fontWeight: '700' },
   searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, height: 48, gap: 10 },
