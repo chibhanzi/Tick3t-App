@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "tick3t – Digital Event Key"
+description = "Mobile app for event attendees and buyers. Lets users discover upcoming events, purchase digital tickets (called 'keys'), manage their vault of purchased tickets with QR codes for entry, and view their profile and order history."
+version = "1.0.0"
+id = "artifacts/tick3t"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 25892
+
+[services.development]
+run = "pnpm --filter @workspace/tick3t run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tick3t", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/tick3t", "run", "serve" ]
+
+[services.env]
+PORT = "25892"
+BASE_PATH = "/"
