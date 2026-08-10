@@ -1,5 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Dimensions, Image, Text } from 'react-native';
+import {
+  View,
+  Animated,
+  StyleSheet,
+  Dimensions,
+  Image,
+  Text,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
@@ -8,122 +15,211 @@ interface SplashAnimationProps {
   onFinish: () => void;
 }
 
+const CHARS = ['T', 'i', 'c', 'k', '3', 't'];
+const STAGGER = 110; // ms between each domino piece
+const FALL_FROM = -200;
+
 export default function SplashAnimation({ onFinish }: SplashAnimationProps) {
-  const logoScale = useRef(new Animated.Value(0.55)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
+  // 7 animated pieces: icon + 6 characters
+  const pieces = useRef(
+    Array.from({ length: 7 }, () => ({
+      y: new Animated.Value(FALL_FROM),
+      opacity: new Animated.Value(0),
+      rot: new Animated.Value(-20),
+    }))
+  ).current;
+
+  const taglineY = useRef(new Animated.Value(18)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const dotsOpacity = useRef(new Animated.Value(0)).current;
+  const poweredOpacity = useRef(new Animated.Value(0)).current;
   const overlayOpacity = useRef(new Animated.Value(1)).current;
-  const ringScale1 = useRef(new Animated.Value(0.4)).current;
-  const ringScale2 = useRef(new Animated.Value(0.4)).current;
-  const ringOpacity1 = useRef(new Animated.Value(0.6)).current;
-  const ringOpacity2 = useRef(new Animated.Value(0.4)).current;
+
+  // Subtle ambient glow pulse
+  const glowScale = useRef(new Animated.Value(0.85)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Pulse rings
-    const pulseRings = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(ringScale1, { toValue: 1.8, duration: 1800, useNativeDriver: true }),
-          Animated.timing(ringScale1, { toValue: 0.4, duration: 0, useNativeDriver: true }),
-        ]),
-        Animated.sequence([
-          Animated.timing(ringOpacity1, { toValue: 0, duration: 1800, useNativeDriver: true }),
-          Animated.timing(ringOpacity1, { toValue: 0.6, duration: 0, useNativeDriver: true }),
-        ]),
+    // Glow fades in while dominoes fall
+    Animated.timing(glowOpacity, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+
+    const glowPulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowScale, { toValue: 1.15, duration: 1800, useNativeDriver: true }),
+        Animated.timing(glowScale, { toValue: 0.85, duration: 1800, useNativeDriver: true }),
       ])
     );
-    const pulseRings2 = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.delay(600),
-          Animated.timing(ringScale2, { toValue: 1.8, duration: 1800, useNativeDriver: true }),
-          Animated.timing(ringScale2, { toValue: 0.4, duration: 0, useNativeDriver: true }),
-        ]),
-        Animated.sequence([
-          Animated.delay(600),
-          Animated.timing(ringOpacity2, { toValue: 0, duration: 1800, useNativeDriver: true }),
-          Animated.timing(ringOpacity2, { toValue: 0.4, duration: 0, useNativeDriver: true }),
+    glowPulse.start();
+
+    // Domino cascade — each piece falls in sequence
+    const dominoAnimations = pieces.map((piece, i) =>
+      Animated.sequence([
+        Animated.delay(i * STAGGER),
+        Animated.parallel([
+          // Fall down with overshoot (spring)
+          Animated.spring(piece.y, {
+            toValue: 0,
+            friction: 6,
+            tension: 80,
+            useNativeDriver: true,
+          }),
+          // Rotate from tilted to upright
+          Animated.spring(piece.rot, {
+            toValue: 0,
+            friction: 6,
+            tension: 80,
+            useNativeDriver: true,
+          }),
+          // Fade in quickly as it falls
+          Animated.timing(piece.opacity, {
+            toValue: 1,
+            duration: 180,
+            useNativeDriver: true,
+          }),
         ]),
       ])
     );
 
-    pulseRings.start();
-    pulseRings2.start();
+    const lastPieceDelay = (pieces.length - 1) * STAGGER + 380;
 
-    // Main sequence
     Animated.sequence([
-      Animated.delay(100),
-      // Logo appears
+      Animated.delay(180),
+      // All pieces fall in staggered
+      Animated.parallel(dominoAnimations),
+    ]).start();
+
+    // After last piece lands, tagline slides up
+    setTimeout(() => {
       Animated.parallel([
-        Animated.spring(logoScale, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true }),
-        Animated.timing(logoOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-      ]),
-      Animated.delay(200),
-      // Tagline fades in
-      Animated.timing(taglineOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.delay(150),
-      // Loading dots
-      Animated.timing(dotsOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      // Hold
-      Animated.delay(900),
-      // Fade out everything
-      Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
-    ]).start(() => {
-      pulseRings.stop();
-      pulseRings2.stop();
-      onFinish();
-    });
+        Animated.spring(taglineY, {
+          toValue: 0,
+          friction: 8,
+          tension: 60,
+          useNativeDriver: true,
+        }),
+        Animated.timing(taglineOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(poweredOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 180 + lastPieceDelay);
+
+    // Fade out everything
+    const totalHold = 180 + lastPieceDelay + 500 + 1100;
+    setTimeout(() => {
+      glowPulse.stop();
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 520,
+        useNativeDriver: true,
+      }).start(() => onFinish());
+    }, totalHold);
   }, []);
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, styles.container, { opacity: overlayOpacity }]} pointerEvents="none">
+    <Animated.View
+      style={[StyleSheet.absoluteFillObject, styles.container, { opacity: overlayOpacity }]}
+      pointerEvents="none"
+    >
       <LinearGradient
-        colors={['#050C18', '#0A1628', '#050C18']}
+        colors={['#040A14', '#071120', '#040A14']}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Radial glow behind logo */}
-      <View style={styles.glowWrap}>
-        <View style={styles.glow} />
-        {/* Pulse rings */}
-        <Animated.View style={[styles.ring, { transform: [{ scale: ringScale1 }], opacity: ringOpacity1 }]} />
-        <Animated.View style={[styles.ring, { transform: [{ scale: ringScale2 }], opacity: ringOpacity2 }]} />
+      {/* Ambient glow behind logo */}
+      <Animated.View
+        style={[
+          styles.glowCircle,
+          { opacity: glowOpacity, transform: [{ scale: glowScale }] },
+        ]}
+      />
+
+      {/* Domino row: icon + letters */}
+      <View style={styles.logoRow}>
+        {/* Piece 0 — Ticket icon */}
+        <Animated.View
+          style={[
+            styles.piece,
+            {
+              opacity: pieces[0].opacity,
+              transform: [
+                { translateY: pieces[0].y },
+                {
+                  rotate: pieces[0].rot.interpolate({
+                    inputRange: [-20, 0],
+                    outputRange: ['-18deg', '0deg'],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Image
+            source={require('@/assets/images/ticket-logo.png')}
+            style={styles.icon}
+            resizeMode="contain"
+          />
+        </Animated.View>
+
+        {/* Pieces 1–6 — Characters */}
+        {CHARS.map((char, i) => {
+          const piece = pieces[i + 1];
+          const isItalic = char === 'i';
+          return (
+            <Animated.View
+              key={char + i}
+              style={[
+                styles.piece,
+                {
+                  opacity: piece.opacity,
+                  transform: [
+                    { translateY: piece.y },
+                    {
+                      rotate: piece.rot.interpolate({
+                        inputRange: [-20, 0],
+                        outputRange: ['-18deg', '0deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Text style={[styles.char, isItalic && styles.charI]}>{char}</Text>
+            </Animated.View>
+          );
+        })}
       </View>
 
-      {/* Logo */}
-      <Animated.View style={[styles.logoWrap, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
-        <Image
-          source={require('@/assets/images/ticket-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.brandName}>Tick3t</Text>
-      </Animated.View>
-
-      {/* Tagline */}
-      <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
+      {/* Tagline slides up */}
+      <Animated.Text
+        style={[
+          styles.tagline,
+          {
+            opacity: taglineOpacity,
+            transform: [{ translateY: taglineY }],
+          },
+        ]}
+      >
         Own Your Access
       </Animated.Text>
 
-      {/* Loading dots */}
-      <Animated.View style={[styles.dotsRow, { opacity: dotsOpacity }]}>
-        {[0, 1, 2].map(i => (
-          <View key={i} style={styles.dot} />
-        ))}
-      </Animated.View>
-
-      {/* Bottom branding */}
-      <Animated.Text style={[styles.poweredBy, { opacity: taglineOpacity }]}>
+      {/* Bottom powered-by */}
+      <Animated.Text style={[styles.poweredBy, { opacity: poweredOpacity }]}>
         Powered by TON · Secured by Paynow
       </Animated.Text>
     </Animated.View>
   );
 }
-
-const LOGO_SIZE = 200;
-const RING_SIZE = 140;
 
 const styles = StyleSheet.create({
   container: {
@@ -131,69 +227,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glowWrap: {
+  glowCircle: {
     position: 'absolute',
-    width: RING_SIZE * 2,
-    height: RING_SIZE * 2,
+    width: 340,
+    height: 200,
+    borderRadius: 170,
+    backgroundColor: 'rgba(30, 130, 240, 0.13)',
+    // soft blue glow matching the ticket icon
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 0,
+    // overflow hidden so pieces don't show above this container
+    overflow: 'visible',
+  },
+  piece: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glow: {
-    position: 'absolute',
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
-    backgroundColor: 'rgba(34,197,94,0.12)',
+  icon: {
+    width: 62,
+    height: 62,
+    marginRight: 10,
   },
-  ring: {
-    position: 'absolute',
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
-    borderWidth: 1.5,
-    borderColor: 'rgba(34,197,94,0.5)',
-  },
-  logoWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-  },
-  brandName: {
-    color: '#fff',
-    fontSize: 32,
+  char: {
+    fontSize: 58,
     fontWeight: '900',
-    letterSpacing: -1,
-    marginTop: 16,
-    textAlign: 'center',
+    color: '#FFFFFF',
+    lineHeight: 66,
+    letterSpacing: -1.5,
+  },
+  charI: {
+    // 'i' is narrower — tighten spacing slightly
+    letterSpacing: -2,
   },
   tagline: {
-    marginTop: 16,
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 13,
-    letterSpacing: 2.5,
+    marginTop: 22,
+    color: 'rgba(255,255,255,0.38)',
+    fontSize: 12,
+    letterSpacing: 3.5,
     textTransform: 'uppercase',
-    fontWeight: '500',
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 40,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#22c55e',
-    opacity: 0.7,
+    fontWeight: '600',
   },
   poweredBy: {
     position: 'absolute',
-    bottom: 48,
-    color: 'rgba(255,255,255,0.2)',
+    bottom: 52,
+    color: 'rgba(255,255,255,0.18)',
     fontSize: 10,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
 });
