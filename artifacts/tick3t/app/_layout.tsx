@@ -1,29 +1,47 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
+  Inter_400Regular, Inter_500Medium,
+  Inter_600SemiBold, Inter_700Bold, useFonts,
 } from '@expo-google-fonts/inter';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { AppProvider } from '@/context/AppContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import SplashAnimation from '@/components/SplashAnimation';
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+// ── Route guard: redirects based on auth state ───────────────────────────────
+function AuthGuard() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (isLoading) return;
+    const inAuth = segments[0] === '(auth)';
+    if (!isAuthenticated && !inAuth) {
+      router.replace('/(auth)/sign-in');
+    } else if (isAuthenticated && inAuth) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, isLoading, segments]);
+
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="event" />
       <Stack.Screen name="ticket" />
@@ -33,16 +51,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
   });
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
+    if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
@@ -52,13 +66,17 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <AppProvider>
-              <GestureHandlerRootView>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </AppProvider>
+            <AuthProvider>
+              <AppProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <KeyboardProvider>
+                    <AuthGuard />
+                    <RootLayoutNav />
+                    {!splashDone && <SplashAnimation onFinish={() => setSplashDone(true)} />}
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
+              </AppProvider>
+            </AuthProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </ErrorBoundary>

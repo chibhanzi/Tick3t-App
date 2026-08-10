@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Event, PurchasedTicket, User } from '@/types';
 
-const TICKETS_KEY = 'tick3rt.vault.tickets';
-const USER_KEY = 'tick3rt.mock-auth.user';
+const TICKETS_KEY = 'tick3t.vault.tickets';
+const USER_KEY = 'tick3t.mock-auth.user';
 
 // Real events from digital-event-key-74
 const MOCK_EVENTS: Event[] = [

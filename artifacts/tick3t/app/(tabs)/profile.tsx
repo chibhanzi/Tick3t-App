@@ -3,30 +3,45 @@ import {
   View, Text, ScrollView, StyleSheet, Pressable, TextInput, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
-  const { user, tickets, updateUser } = useApp();
+  const { user: authUser, signOut } = useAuth();
+  const { tickets, updateUser, user } = useApp();
+  const router = useRouter();
+
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.name ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
+  const [name, setName] = useState(authUser?.name ?? user?.name ?? '');
+  const [email, setEmail] = useState(authUser?.email ?? user?.email ?? '');
 
   const upcoming = tickets.filter(t => t.status === 'upcoming').length;
   const past = tickets.filter(t => t.status === 'past').length;
-  const initials = (user?.name ?? 'G').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const displayName = authUser?.name ?? user?.name ?? 'Guest';
+  const displayEmail = authUser?.email ?? user?.email ?? '';
+  const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
 
   const handleSave = () => { updateUser({ name, email }); setEditing(false); };
 
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/sign-in'); } },
+    ]);
+  };
+
   const menuItems = [
-    { icon: '🎟', label: 'My Tickets', value: `${tickets.length} total`, onPress: () => {} },
-    { icon: '⬡', label: 'NFT Wallet', value: 'TON Blockchain', onPress: () => Alert.alert('NFT Wallet', 'Connect your TON wallet to manage NFT tickets.\n\nWallet integration coming soon.') },
-    { icon: '🔔', label: 'Notifications', value: 'On', onPress: () => Alert.alert('Notifications', 'Manage your notification preferences.') },
-    { icon: '🔒', label: 'Security', value: '', onPress: () => Alert.alert('Security', 'Two-factor authentication and account security settings.') },
-    { icon: '📱', label: 'Paynow', value: 'Not linked', onPress: () => Alert.alert('Paynow', 'Link your Paynow account for secure, seamless payments.') },
-    { icon: '🏷', label: 'Refer Friends', value: '', onPress: () => Alert.alert('Referrals', 'Share your referral code to earn free tickets!') },
-    { icon: '❓', label: 'Help & Support', value: '', onPress: () => Alert.alert('Support', 'Contact us at support@tick3t.com') },
+    { icon: 'ticket-outline' as const, label: 'My Tickets', value: `${tickets.length} total`, onPress: () => {} },
+    { icon: 'cube-outline' as const, label: 'NFT Wallet', value: 'TON Blockchain', onPress: () => Alert.alert('NFT Wallet', 'Connect your TON wallet to manage NFT tickets.\n\nWallet integration coming soon.') },
+    { icon: 'notifications-outline' as const, label: 'Notifications', value: 'On', onPress: () => Alert.alert('Notifications', 'Manage your notification preferences.') },
+    { icon: 'shield-checkmark-outline' as const, label: 'Security', value: '', onPress: () => Alert.alert('Security', 'Two-factor authentication and account security settings.') },
+    { icon: 'card-outline' as const, label: 'Paynow', value: 'Not linked', onPress: () => Alert.alert('Paynow', 'Link your Paynow account for secure, seamless payments.') },
+    { icon: 'gift-outline' as const, label: 'Refer Friends', value: '', onPress: () => Alert.alert('Referrals', 'Share your referral code to earn free tickets!') },
+    { icon: 'help-circle-outline' as const, label: 'Help & Support', value: '', onPress: () => Alert.alert('Support', 'Contact us at support@tick3t.com') },
   ];
 
   return (
@@ -47,36 +62,29 @@ export default function ProfileScreen() {
 
         {/* Avatar + info */}
         <View style={styles.avatarSection}>
-          <View style={[styles.avatar, { backgroundColor: C.primary + '33', borderColor: C.primary }]}>
-            <Text style={[styles.initials, { color: C.primary }]}>{initials}</Text>
+          <View style={[styles.avatarRing, { borderColor: C.primary + '50' }]}>
+            <View style={[styles.avatar, { backgroundColor: C.primary + '22' }]}>
+              <Text style={[styles.initials, { color: C.primary }]}>{initials}</Text>
+            </View>
           </View>
           {editing ? (
             <View style={styles.editFields}>
-              <TextInput
-                style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]}
-                value={name} onChangeText={setName}
-                placeholder="Display name" placeholderTextColor={C.textMuted}
-              />
-              <TextInput
-                style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]}
-                value={email} onChangeText={setEmail}
-                placeholder="Email" placeholderTextColor={C.textMuted}
-                keyboardType="email-address"
-              />
+              <TextInput style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]} value={name} onChangeText={setName} placeholder="Display name" placeholderTextColor={C.textMuted} />
+              <TextInput style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={C.textMuted} keyboardType="email-address" />
             </View>
           ) : (
             <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: C.text }]}>{user?.name}</Text>
-              <Text style={[styles.userEmail, { color: C.textSecondary }]}>{user?.email}</Text>
+              <Text style={[styles.userName, { color: C.text }]}>{displayName}</Text>
+              <Text style={[styles.userEmail, { color: C.textSecondary }]}>{displayEmail}</Text>
               <View style={styles.roleBadgeRow}>
                 <View style={[styles.roleBadge, { backgroundColor: C.primary + '22', borderColor: C.primary + '44' }]}>
-                  <Text style={[styles.roleBadgeText, { color: C.primary }]}>🎫 Attendee</Text>
+                  <Ionicons name="ticket-outline" size={11} color={C.primary} />
+                  <Text style={[styles.roleBadgeText, { color: C.primary }]}>Attendee</Text>
                 </View>
-                {user?.isVerified && (
-                  <View style={[styles.roleBadge, { backgroundColor: '#6366F122', borderColor: '#6366F144' }]}>
-                    <Text style={[styles.roleBadgeText, { color: '#818CF8' }]}>✓ Verified</Text>
-                  </View>
-                )}
+                <View style={[styles.roleBadge, { backgroundColor: '#6366F122', borderColor: '#6366F144' }]}>
+                  <Ionicons name="cube-outline" size={11} color="#818CF8" />
+                  <Text style={[styles.roleBadgeText, { color: '#818CF8' }]}>NFT Member</Text>
+                </View>
               </View>
             </View>
           )}
@@ -85,12 +93,12 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={[styles.statsGrid, { backgroundColor: C.card, borderColor: C.border }]}>
           {[
-            { label: 'Upcoming', value: upcoming, icon: '🎟' },
-            { label: 'Attended', value: past, icon: '✓' },
-            { label: 'NFT Keys', value: tickets.filter(t => t.isNFT).length, icon: '⬡' },
+            { label: 'Upcoming', value: upcoming, icon: 'ticket-outline' as const },
+            { label: 'Attended', value: past, icon: 'checkmark-circle-outline' as const },
+            { label: 'NFT Keys', value: tickets.filter(t => t.isNFT).length, icon: 'cube-outline' as const },
           ].map((s, i) => (
             <View key={i} style={[styles.statItem, i < 2 && { borderRightWidth: 1, borderRightColor: C.border }]}>
-              <Text style={styles.statIcon}>{s.icon}</Text>
+              <Ionicons name={s.icon} size={20} color={C.primary} />
               <Text style={[styles.statValue, { color: C.text }]}>{s.value}</Text>
               <Text style={[styles.statLabel, { color: C.textMuted }]}>{s.label}</Text>
             </View>
@@ -99,42 +107,31 @@ export default function ProfileScreen() {
 
         {/* Upgrade banner */}
         <Pressable
-          style={[styles.upgradeBanner, { backgroundColor: C.primary + '15', borderColor: C.primary + '40' }]}
+          style={[styles.upgradeBanner, { backgroundColor: C.primary + '12', borderColor: C.primary + '35' }]}
           onPress={() => Alert.alert('Become an Organizer', 'Create and manage your own events on Tick3t.\n\nOrganizer upgrade coming soon!')}
         >
-          <View>
+          <View style={[styles.upgradeIcon, { backgroundColor: C.primary + '20' }]}>
+            <Ionicons name="megaphone-outline" size={20} color={C.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.upgradeTitle, { color: C.primary }]}>Become an Organizer</Text>
             <Text style={[styles.upgradeDesc, { color: C.textSecondary }]}>Create events, sell tickets, track analytics</Text>
           </View>
-          <Text style={[styles.upgradeArrow, { color: C.primary }]}>→</Text>
+          <Ionicons name="chevron-forward" size={18} color={C.primary} />
         </Pressable>
 
-        {/* ── Theme Toggle ── */}
+        {/* Theme toggle */}
         <View style={[styles.themeCard, { backgroundColor: C.card, borderColor: C.border }]}>
           <View style={styles.themeRow}>
-            <View style={styles.themeLeft}>
-              <Text style={styles.themeIcon}>{isDark ? '🌙' : '☀️'}</Text>
-              <View>
-                <Text style={[styles.themeLabel, { color: C.text }]}>
-                  {isDark ? 'Dark Mode' : 'Light Mode'}
-                </Text>
-                <Text style={[styles.themeDesc, { color: C.textMuted }]}>
-                  {isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-                </Text>
-              </View>
+            <View style={[styles.themeIconBox, { backgroundColor: isDark ? '#1a2a4a' : '#f0f9ff' }]}>
+              <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={isDark ? '#60A5FA' : '#F59E0B'} />
             </View>
-            {/* Toggle pill */}
-            <Pressable
-              onPress={toggleTheme}
-              style={[
-                styles.togglePill,
-                { backgroundColor: isDark ? C.primary : C.border },
-              ]}
-            >
-              <View style={[
-                styles.toggleKnob,
-                { transform: [{ translateX: isDark ? 20 : 0 }] },
-              ]} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={[styles.themeLabel, { color: C.text }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
+              <Text style={[styles.themeDesc, { color: C.textMuted }]}>{isDark ? 'Switch to light theme' : 'Switch to dark theme'}</Text>
+            </View>
+            <Pressable onPress={toggleTheme} style={[styles.togglePill, { backgroundColor: isDark ? C.primary : C.border }]}>
+              <View style={[styles.toggleKnob, { transform: [{ translateX: isDark ? 20 : 0 }] }]} />
             </Pressable>
           </View>
         </View>
@@ -147,15 +144,26 @@ export default function ProfileScreen() {
               style={[styles.menuRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}
               onPress={item.onPress}
             >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <View style={[styles.menuIconBox, { backgroundColor: C.surface }]}>
+                <Ionicons name={item.icon} size={18} color={C.textSecondary} />
+              </View>
               <Text style={[styles.menuLabel, { color: C.text }]}>{item.label}</Text>
               <View style={styles.menuRight}>
                 {item.value ? <Text style={[styles.menuValue, { color: C.textMuted }]}>{item.value}</Text> : null}
-                <Text style={[styles.menuArrow, { color: C.textMuted }]}>›</Text>
+                <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
               </View>
             </Pressable>
           ))}
         </View>
+
+        {/* Sign Out */}
+        <Pressable
+          style={[styles.signOutBtn, { backgroundColor: '#EF444415', borderColor: '#EF444430' }]}
+          onPress={handleSignOut}
+        >
+          <Ionicons name="log-out-outline" size={18} color="#F87171" />
+          <Text style={[styles.signOutText, { color: '#F87171' }]}>Sign Out</Text>
+        </Pressable>
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -176,8 +184,9 @@ const styles = StyleSheet.create({
   editBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   editBtnText: { fontSize: 14, fontWeight: '600' },
 
-  avatarSection: { alignItems: 'center', paddingVertical: 24 },
-  avatar: { width: 90, height: 90, borderRadius: 45, alignItems: 'center', justifyContent: 'center', borderWidth: 3, marginBottom: 16 },
+  avatarSection: { alignItems: 'center', paddingVertical: 20 },
+  avatarRing: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, padding: 4, marginBottom: 14 },
+  avatar: { flex: 1, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
   initials: { fontSize: 32, fontWeight: '900', letterSpacing: -1 },
   editFields: { width: '100%', paddingHorizontal: 24, gap: 10 },
   editInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
@@ -185,44 +194,37 @@ const styles = StyleSheet.create({
   userName: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3, marginBottom: 4 },
   userEmail: { fontSize: 14, marginBottom: 12 },
   roleBadgeRow: { flexDirection: 'row', gap: 8 },
-  roleBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
+  roleBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   roleBadgeText: { fontSize: 12, fontWeight: '700' },
 
-  statsGrid: { flexDirection: 'row', marginHorizontal: 20, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  statItem: { flex: 1, alignItems: 'center', paddingVertical: 16, gap: 3 },
-  statIcon: { fontSize: 20 },
+  statsGrid: { flexDirection: 'row', marginHorizontal: 20, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  statItem: { flex: 1, alignItems: 'center', paddingVertical: 16, gap: 4 },
   statValue: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
 
-  upgradeBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: 20, borderRadius: 14, padding: 16, borderWidth: 1 },
-  upgradeTitle: { fontSize: 15, fontWeight: '800', marginBottom: 3 },
+  upgradeBanner: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 20, borderRadius: 16, padding: 14, borderWidth: 1 },
+  upgradeIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  upgradeTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
   upgradeDesc: { fontSize: 12 },
-  upgradeArrow: { fontSize: 22, fontWeight: '700' },
 
-  // Theme toggle
-  themeCard: { marginHorizontal: 20, marginBottom: 16, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  themeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  themeLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  themeIcon: { fontSize: 22 },
+  themeCard: { marginHorizontal: 20, marginBottom: 14, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  themeRow: { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  themeIconBox: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   themeLabel: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
   themeDesc: { fontSize: 12 },
-  togglePill: {
-    width: 46, height: 26, borderRadius: 13,
-    justifyContent: 'center', paddingHorizontal: 3,
-  },
-  toggleKnob: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#fff',
-  },
+  togglePill: { width: 46, height: 26, borderRadius: 13, justifyContent: 'center', paddingHorizontal: 3 },
+  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
 
-  menuCard: { marginHorizontal: 20, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  menuRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
-  menuIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  menuCard: { marginHorizontal: 20, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  menuRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  menuIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   menuLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
   menuRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   menuValue: { fontSize: 13 },
-  menuArrow: { fontSize: 20 },
 
-  footer: { alignItems: 'center', paddingTop: 24, gap: 6 },
+  signOutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 20, marginTop: 14, borderRadius: 16, borderWidth: 1, paddingVertical: 14 },
+  signOutText: { fontSize: 15, fontWeight: '700' },
+
+  footer: { alignItems: 'center', paddingTop: 20, gap: 6 },
   footerText: { fontSize: 11 },
 });

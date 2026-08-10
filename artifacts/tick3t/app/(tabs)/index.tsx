@@ -4,11 +4,14 @@ import {
   StatusBar, Image, Animated, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 import EventCard from '@/components/EventCard';
 import Logo from '@/components/Logo';
+import FilterModal, { FilterState } from '@/components/FilterModal';
 import { EventCategory } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -19,9 +22,7 @@ const HERO_SLIDES = [
     id: '1',
     title: 'Bass Drop Festival 2024',
     description: 'The hottest DJs and producers for a night of non-stop dancing under the Miami stars.',
-    date: 'MAR 15, 2024',
-    time: '9:00 PM',
-    venue: 'Miami Beach Arena',
+    date: 'MAR 15, 2024', time: '9:00 PM', venue: 'Miami Beach Arena',
     category: 'Music Festival',
     image: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=900&h=700&fit=crop',
   },
@@ -29,9 +30,7 @@ const HERO_SLIDES = [
     id: '3',
     title: 'Tech Innovation Summit',
     description: 'The premier tech conference — founders, investors, and engineers shaping the future.',
-    date: 'MAR 28, 2024',
-    time: '9:00 AM',
-    venue: 'Silicon Valley Convention Center',
+    date: 'MAR 28, 2024', time: '9:00 AM', venue: 'Silicon Valley Convention Center',
     category: 'Tech & Networking',
     image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&h=700&fit=crop',
   },
@@ -39,71 +38,32 @@ const HERO_SLIDES = [
     id: '6',
     title: 'Fashion Week Gala',
     description: 'Runway shows, designer meet-and-greets, and exclusive after-parties in Manhattan.',
-    date: 'APR 20, 2024',
-    time: '8:00 PM',
-    venue: 'Manhattan Design Center',
+    date: 'APR 20, 2024', time: '8:00 PM', venue: 'Manhattan Design Center',
     category: 'Fashion',
     image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=900&h=700&fit=crop',
   },
 ];
 
 const CATEGORIES = [
-  { label: 'Music', tagline: 'Concerts, festivals & live sets', image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop', cat: 'Music Festival' as EventCategory },
-  { label: 'Art & Culture', tagline: 'Galleries, theater & showcases', image: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', cat: 'Art & Culture' as EventCategory },
-  { label: 'Tech', tagline: 'Conferences, summits & networking', image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop', cat: 'Tech & Networking' as EventCategory },
-  { label: 'Gaming', tagline: 'Esports, championships & cons', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=300&fit=crop', cat: 'Gaming' as EventCategory },
+  { label: 'Music', tagline: 'Concerts & festivals', image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop', cat: 'Music Festival' as EventCategory },
+  { label: 'Art', tagline: 'Galleries & showcases', image: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', cat: 'Art & Culture' as EventCategory },
+  { label: 'Tech', tagline: 'Conferences & summits', image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop', cat: 'Tech & Networking' as EventCategory },
+  { label: 'Gaming', tagline: 'Esports & championships', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=300&fit=crop', cat: 'Gaming' as EventCategory },
 ];
 
-// ── Slide content (inside image) ─────────────────────────────────────────────
-function HeroSlideContent({
-  slide,
-  fade,
-  onGetTicket,
-}: {
-  slide: typeof HERO_SLIDES[0];
-  fade: Animated.Value;
-  onGetTicket: (id: string) => void;
-}) {
-  return (
-    <Animated.View style={[styles.slideContent, { opacity: fade }]}>
-      {/* Single unified scrim over the whole image */}
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-        {/* Darker at bottom for text legibility */}
-        <View style={styles.imgScrimFull} />
-        <View style={styles.imgScrimBottom} />
-      </View>
+const DEFAULT_FILTERS: FilterState = { location: '', categories: [], dateFilter: 'Any time', minPrice: '', maxPrice: '' };
 
-      {/* Event info pinned to bottom */}
-      <View style={styles.slideInfo}>
-        <View style={styles.heroCategoryBadge}>
-          <Text style={styles.heroCategoryText}>{slide.category}</Text>
-        </View>
-        <Text style={styles.heroTitle} numberOfLines={2}>{slide.title}</Text>
-        <Text style={styles.heroDesc} numberOfLines={2}>{slide.description}</Text>
-        <View style={styles.heroMeta}>
-          <Text style={styles.heroMetaText}>📅 {slide.date} · {slide.time}</Text>
-          <Text style={styles.heroMetaText}>📍 {slide.venue}</Text>
-        </View>
-        <View style={styles.heroCTAs}>
-          <Pressable style={styles.ctaWhite} onPress={() => onGetTicket(slide.id)}>
-            <Text style={styles.ctaWhiteText}>Get Tickets</Text>
-          </Pressable>
-          <Pressable style={styles.ctaOutline}>
-            <Text style={styles.ctaOutlineText}>Browse Events</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Animated.View>
-  );
-}
-
-// ── Main screen ──────────────────────────────────────────────────────────────
 export default function DiscoverScreen() {
   const { colors: C, isDark } = useTheme();
   const router = useRouter();
   const { events } = useApp();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<EventCategory | null>(null);
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
+
+  // Hero slider
   const [slide, setSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -114,7 +74,6 @@ export default function DiscoverScreen() {
     ]).start();
     setTimeout(() => setSlide(next), 280);
   };
-
   useEffect(() => {
     const id = setInterval(() => goTo((slide + 1) % HERO_SLIDES.length), 6000);
     return () => clearInterval(id);
@@ -122,77 +81,165 @@ export default function DiscoverScreen() {
 
   const almostSoldOut = useMemo(() => events.filter(e => e.available > 0 && e.available < 100), [events]);
   const trending = useMemo(() => events.filter(e => e.available > 0 && e.attendees >= 800), [events]);
+
+  // Apply all filters
   const searchResults = useMemo(() => {
-    if (!searchQuery) return [];
+    let pool = events;
     const q = searchQuery.toLowerCase();
-    return events.filter(e =>
+    if (q) pool = pool.filter(e =>
       e.title.toLowerCase().includes(q) ||
       e.location.toLowerCase().includes(q) ||
       e.organizer.toLowerCase().includes(q)
     );
-  }, [events, searchQuery]);
-  const categoryResults = useMemo(() => {
-    if (!activeCategory) return [];
-    return events.filter(e => e.category === activeCategory);
-  }, [events, activeCategory]);
+    if (activeCategory) pool = pool.filter(e => e.category === activeCategory);
+    if (activeFilters.location) pool = pool.filter(e => e.location.toLowerCase().includes(activeFilters.location.toLowerCase()));
+    if (activeFilters.categories.length) pool = pool.filter(e => activeFilters.categories.includes(e.category));
+    if (activeFilters.minPrice) pool = pool.filter(e => e.price >= Number(activeFilters.minPrice));
+    if (activeFilters.maxPrice) pool = pool.filter(e => e.price <= Number(activeFilters.maxPrice));
+    return pool;
+  }, [events, searchQuery, activeCategory, activeFilters]);
 
-  const showingResults = searchQuery.length > 0 || activeCategory !== null;
-  const results = searchQuery ? searchResults : categoryResults;
+  const hasActiveFilters =
+    activeFilters.location !== '' ||
+    activeFilters.categories.length > 0 ||
+    activeFilters.dateFilter !== 'Any time' ||
+    activeFilters.minPrice !== '' ||
+    activeFilters.maxPrice !== '';
 
+  const activeFilterCount =
+    (activeFilters.location ? 1 : 0) +
+    activeFilters.categories.length +
+    (activeFilters.dateFilter !== 'Any time' ? 1 : 0) +
+    (activeFilters.minPrice || activeFilters.maxPrice ? 1 : 0);
+
+  const showingResults = searchQuery.length > 0 || activeCategory !== null || hasActiveFilters;
   const current = HERO_SLIDES[slide];
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* ── Fixed nav bar: logo + search ───────────────────────────────────── */}
+      {/* ── Nav bar ─────────────────────────────────────────────────────────── */}
       <SafeAreaView edges={['top']} style={[styles.navbar, { backgroundColor: C.card, borderBottomColor: C.border }]}>
         <View style={styles.navRow}>
           <Logo size="md" />
         </View>
-        <View style={[styles.searchBar, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <Text style={[styles.searchIcon, { color: C.textMuted }]}>🔍</Text>
-          <TextInput
-            style={[styles.searchInput, { color: C.text }]}
-            placeholder="Search events, artists, or venues…"
-            placeholderTextColor={C.textMuted}
-            value={searchQuery}
-            onChangeText={t => { setSearchQuery(t); setActiveCategory(null); }}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')}>
-              <Text style={{ color: C.textMuted, fontSize: 15, paddingHorizontal: 4 }}>✕</Text>
-            </Pressable>
-          )}
+        {/* Search + Filter row */}
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBar, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <Ionicons name="search" size={17} color={C.textMuted} style={styles.searchIcon} />
+            <TextInput
+              style={[styles.searchInput, { color: C.text }]}
+              placeholder="Search events, artists or venues…"
+              placeholderTextColor={C.textMuted}
+              value={searchQuery}
+              onChangeText={t => { setSearchQuery(t); setActiveCategory(null); }}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={17} color={C.textMuted} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Filter button */}
+          <Pressable
+            style={[
+              styles.filterBtn,
+              { backgroundColor: hasActiveFilters ? C.primary : C.surface, borderColor: hasActiveFilters ? C.primary : C.border },
+            ]}
+            onPress={() => setFilterVisible(true)}
+          >
+            <Ionicons name="options-outline" size={18} color={hasActiveFilters ? '#fff' : C.textSecondary} />
+            {activeFilterCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              </View>
+            )}
+          </Pressable>
         </View>
+
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeChips} contentContainerStyle={{ gap: 6, paddingBottom: 6 }}>
+            {activeFilters.location ? (
+              <View style={[styles.activeChip, { backgroundColor: C.primary + '20', borderColor: C.primary + '50' }]}>
+                <Ionicons name="location-outline" size={11} color={C.primary} />
+                <Text style={[styles.activeChipText, { color: C.primary }]}>{activeFilters.location}</Text>
+              </View>
+            ) : null}
+            {activeFilters.categories.map(cat => (
+              <View key={cat} style={[styles.activeChip, { backgroundColor: C.primary + '20', borderColor: C.primary + '50' }]}>
+                <Text style={[styles.activeChipText, { color: C.primary }]}>{cat}</Text>
+              </View>
+            ))}
+            {activeFilters.dateFilter !== 'Any time' && (
+              <View style={[styles.activeChip, { backgroundColor: C.primary + '20', borderColor: C.primary + '50' }]}>
+                <Ionicons name="calendar-outline" size={11} color={C.primary} />
+                <Text style={[styles.activeChipText, { color: C.primary }]}>{activeFilters.dateFilter}</Text>
+              </View>
+            )}
+            <Pressable
+              style={[styles.activeChip, { backgroundColor: '#EF444420', borderColor: '#EF444440' }]}
+              onPress={() => { setActiveFilters(DEFAULT_FILTERS); setActiveCategory(null); setSearchQuery(''); }}
+            >
+              <Text style={[styles.activeChipText, { color: '#F87171' }]}>Clear all</Text>
+              <Ionicons name="close" size={11} color="#F87171" />
+            </Pressable>
+          </ScrollView>
+        )}
       </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* ── Hero slideshow ─────────────────────────────────────────────── */}
+        {/* ── Hero slideshow ──────────────────────────────────────────────── */}
         <View style={styles.heroWrap}>
-          {/* Stacked images — only current is visible */}
           {HERO_SLIDES.map((s, i) => (
-            <Image
-              key={s.id}
-              source={{ uri: s.image }}
+            <Image key={s.id} source={{ uri: s.image }}
               style={[StyleSheet.absoluteFillObject, { opacity: i === slide ? 1 : 0 }]}
               resizeMode="cover"
             />
           ))}
+          <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <View style={styles.imgScrimFull} />
+            <View style={styles.imgScrimBottom} />
+          </View>
 
-          {/* Slide content + scrims */}
-          <HeroSlideContent slide={current} fade={fadeAnim} onGetTicket={id => router.push(`/event/${id}`)} />
+          <Animated.View style={[styles.slideInfo, { opacity: fadeAnim }]}>
+            <View style={styles.heroCategoryBadge}>
+              <Text style={styles.heroCategoryText}>{current.category}</Text>
+            </View>
+            <Text style={styles.heroTitle} numberOfLines={2}>{current.title}</Text>
+            <Text style={styles.heroDesc} numberOfLines={2}>{current.description}</Text>
+            <View style={styles.heroMeta}>
+              <View style={styles.heroMetaItem}>
+                <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.heroMetaText}>{current.date} · {current.time}</Text>
+              </View>
+              <View style={styles.heroMetaItem}>
+                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.heroMetaText}>{current.venue}</Text>
+              </View>
+            </View>
+            <View style={styles.heroCTAs}>
+              <Pressable style={styles.ctaWhite} onPress={() => router.push(`/event/${current.id}`)}>
+                <Text style={styles.ctaWhiteText}>Get Tickets</Text>
+              </Pressable>
+              <Pressable style={styles.ctaOutline}>
+                <Text style={styles.ctaOutlineText}>Browse Events</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
 
-          {/* Controls bar at very bottom */}
+          {/* Controls */}
           <View style={styles.slideControls}>
             <View style={styles.slideArrows}>
               <Pressable style={styles.arrowBtn} onPress={() => goTo((slide - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}>
-                <Text style={styles.arrowText}>‹</Text>
+                <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.8)" />
               </Pressable>
               <Pressable style={styles.arrowBtn} onPress={() => goTo((slide + 1) % HERO_SLIDES.length)}>
-                <Text style={styles.arrowText}>›</Text>
+                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.8)" />
               </Pressable>
             </View>
             <View style={styles.dotsRow}>
@@ -201,34 +248,32 @@ export default function DiscoverScreen() {
                   <View style={[styles.dot, i === slide && styles.dotActive]} />
                 </Pressable>
               ))}
-              <Text style={styles.slideCounter}>
-                {String(slide + 1).padStart(2, '0')} / {String(HERO_SLIDES.length).padStart(2, '0')}
-              </Text>
+              <Text style={styles.slideCounter}>{String(slide + 1).padStart(2, '0')} / {String(HERO_SLIDES.length).padStart(2, '0')}</Text>
             </View>
           </View>
         </View>
 
+        {/* ── Search / filter results ─────────────────────────────────────── */}
         {showingResults ? (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: C.text }]}>
-                {searchQuery ? `"${searchQuery}"` : activeCategory}
-                {'  '}
-                <Text style={{ color: C.textMuted, fontSize: 14 }}>({results.length})</Text>
+                {searchQuery ? `"${searchQuery}"` : activeCategory ?? 'Filtered'}
+                <Text style={{ color: C.textMuted, fontSize: 14 }}> ({searchResults.length})</Text>
               </Text>
-              <Pressable onPress={() => { setSearchQuery(''); setActiveCategory(null); }}>
+              <Pressable onPress={() => { setSearchQuery(''); setActiveCategory(null); setActiveFilters(DEFAULT_FILTERS); }}>
                 <Text style={{ color: C.primary, fontSize: 13, fontWeight: '600' }}>Clear ✕</Text>
               </Pressable>
             </View>
-            {results.length === 0 ? (
+            {searchResults.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyEmoji}>🎪</Text>
-                <Text style={[styles.emptyTitle, { color: C.text }]}>No events found</Text>
-                <Text style={[styles.emptyText, { color: C.textMuted }]}>Try a different search term.</Text>
+                <Ionicons name="search-outline" size={48} color={C.textMuted} />
+                <Text style={[styles.emptyTitle, { color: C.text, marginTop: 12 }]}>No events found</Text>
+                <Text style={[styles.emptyText, { color: C.textMuted }]}>Try adjusting your search or filters.</Text>
               </View>
             ) : (
               <View style={styles.twoCol}>
-                {results.map(e => <EventCard key={e.id} event={e} variant="grid" />)}
+                {searchResults.map(e => <EventCard key={e.id} event={e} variant="grid" />)}
               </View>
             )}
           </View>
@@ -256,8 +301,9 @@ export default function DiscoverScreen() {
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={[styles.sectionTitle, { color: C.text }]}>⏱ Almost Sold Out</Text>
+                    <Text style={[styles.sectionTitle, { color: C.text }]}>Almost Sold Out</Text>
                     <View style={[styles.limitedPill, { backgroundColor: '#EF444420', borderColor: '#EF444450' }]}>
+                      <Ionicons name="time-outline" size={10} color="#F87171" />
                       <Text style={[styles.limitedText, { color: '#F87171' }]}>Limited</Text>
                     </View>
                   </View>
@@ -291,25 +337,58 @@ export default function DiscoverScreen() {
             {/* ── See All CTA ── */}
             <View style={styles.ctaRow}>
               <Pressable style={[styles.seeAllBtn, { backgroundColor: C.primary }]}>
-                <Text style={styles.seeAllText}>📅  See All Events</Text>
+                <Ionicons name="calendar-outline" size={16} color="#fff" />
+                <Text style={styles.seeAllText}>See All Events</Text>
               </Pressable>
             </View>
 
-            {/* ── Trust cards ── */}
-            <View style={[styles.trustSection, { backgroundColor: C.card, borderColor: C.border }]}>
-              <Text style={[styles.trustHeading, { color: C.text }]}>Why Tick3t?</Text>
-              <View style={styles.twoCol}>
+            {/* ── Why Tick3t ── */}
+            <View style={styles.whySection}>
+              <Text style={[styles.sectionTitle, { color: C.text, marginBottom: 4 }]}>Why Tick3t?</Text>
+              <Text style={[styles.whySubtitle, { color: C.textMuted }]}>The smarter way to experience events</Text>
+
+              <View style={styles.whyGrid}>
                 {[
-                  { icon: '⬡', title: 'NFT Tickets', desc: 'Every ticket secured on the TON blockchain' },
-                  { icon: '🔒', title: 'Secure Payments', desc: 'Encrypted & verified via Paynow' },
-                  { icon: '✓', title: 'Verified Resale', desc: 'All marketplace listings are verified' },
-                  { icon: '🎨', title: 'Custom Design', desc: 'Personalised digital keys per event' },
-                ].map((t, i) => (
-                  <View key={i} style={[styles.trustCard, { backgroundColor: C.background, borderColor: C.border }]}>
-                    <Text style={styles.trustIcon}>{t.icon}</Text>
-                    <Text style={[styles.trustTitle, { color: C.text }]}>{t.title}</Text>
-                    <Text style={[styles.trustDesc, { color: C.textMuted }]}>{t.desc}</Text>
-                  </View>
+                  {
+                    icon: 'cube-outline' as const,
+                    title: 'NFT Tickets',
+                    desc: 'Every ticket lives on the TON blockchain — unforgeable, yours forever.',
+                    gradColors: ['#1a2a4a', '#0f1e35'] as [string, string],
+                    accent: '#60A5FA',
+                  },
+                  {
+                    icon: 'shield-checkmark-outline' as const,
+                    title: 'Secure Payments',
+                    desc: 'Encrypted checkout powered by Paynow for instant, safe transactions.',
+                    gradColors: ['#1a3a2a', '#0f2820'] as [string, string],
+                    accent: '#34d399',
+                  },
+                  {
+                    icon: 'storefront-outline' as const,
+                    title: 'Verified Resale',
+                    desc: 'Buy and sell tickets with confidence — every listing is identity-verified.',
+                    gradColors: ['#2a1a3a', '#1f1030'] as [string, string],
+                    accent: '#a78bfa',
+                  },
+                  {
+                    icon: 'color-palette-outline' as const,
+                    title: 'Custom Keys',
+                    desc: 'Personalised digital ticket designs that are as unique as the event.',
+                    gradColors: ['#3a2a1a', '#2a1a0f'] as [string, string],
+                    accent: '#fb923c',
+                  },
+                ].map((item, i) => (
+                  <LinearGradient
+                    key={i}
+                    colors={isDark ? item.gradColors : ['#f8fafc', '#f1f5f9']}
+                    style={[styles.whyCard, { borderColor: isDark ? item.accent + '30' : C.border }]}
+                  >
+                    <View style={[styles.whyIconCircle, { backgroundColor: item.accent + '20' }]}>
+                      <Ionicons name={item.icon} size={22} color={item.accent} />
+                    </View>
+                    <Text style={[styles.whyTitle, { color: C.text }]}>{item.title}</Text>
+                    <Text style={[styles.whyDesc, { color: C.textMuted }]}>{item.desc}</Text>
+                  </LinearGradient>
                 ))}
               </View>
             </View>
@@ -318,134 +397,91 @@ export default function DiscoverScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Filter modal */}
+      <FilterModal
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        onApply={setActiveFilters}
+        activeFilters={activeFilters}
+      />
     </View>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  // Nav bar (above hero)
-  navbar: {
-    borderBottomWidth: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-  },
-  navRow: {
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', height: 44,
-    borderRadius: 50, borderWidth: 1, paddingHorizontal: 14,
-  },
-  searchIcon: { fontSize: 14, marginRight: 8 },
+  navbar: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 10 },
+  navRow: { paddingTop: 4, paddingBottom: 8 },
+  searchRow: { flexDirection: 'row', gap: 8 },
+  searchBar: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 44, borderRadius: 50, borderWidth: 1, paddingHorizontal: 14 },
+  searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
+  filterBtn: { width: 44, height: 44, borderRadius: 50, borderWidth: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  filterBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' },
+  filterBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  activeChips: { marginTop: 8 },
+  activeChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
+  activeChipText: { fontSize: 11, fontWeight: '600' },
 
-  // Hero
   heroWrap: { width: '100%', height: 420, position: 'relative' },
+  imgScrimFull: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,12,24,0.30)' },
+  imgScrimBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 280, backgroundColor: 'rgba(5,12,24,0.72)' },
 
-  slideContent: { ...StyleSheet.absoluteFillObject },
-
-  imgScrimFull: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(5,12,24,0.30)',
-  },
-  imgScrimBottom: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 280,
-    backgroundColor: 'rgba(5,12,24,0.72)',
-  },
-
-  slideInfo: {
-    position: 'absolute', bottom: 52, left: 0, right: 0, paddingHorizontal: 20,
-  },
-  heroCategoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(22,163,74,0.9)',
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 50, marginBottom: 10,
-  },
+  slideInfo: { position: 'absolute', bottom: 52, left: 0, right: 0, paddingHorizontal: 20 },
+  heroCategoryBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(22,163,74,0.9)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 50, marginBottom: 10 },
   heroCategoryText: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  heroTitle: {
-    color: '#fff', fontSize: 26, fontWeight: '900',
-    letterSpacing: -0.5, marginBottom: 8, lineHeight: 32,
-  },
+  heroTitle: { color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5, marginBottom: 8, lineHeight: 32 },
   heroDesc: { color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 18, marginBottom: 10 },
-  heroMeta: { gap: 3, marginBottom: 14 },
+  heroMeta: { gap: 4, marginBottom: 14 },
+  heroMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   heroMetaText: { color: 'rgba(255,255,255,0.68)', fontSize: 12 },
   heroCTAs: { flexDirection: 'row', gap: 10 },
   ctaWhite: { backgroundColor: '#fff', borderRadius: 50, paddingHorizontal: 22, paddingVertical: 11 },
   ctaWhiteText: { color: '#050C18', fontSize: 14, fontWeight: '800' },
-  ctaOutline: {
-    borderRadius: 50, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
-    paddingHorizontal: 22, paddingVertical: 11,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
+  ctaOutline: { borderRadius: 50, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', paddingHorizontal: 22, paddingVertical: 11, backgroundColor: 'rgba(255,255,255,0.10)' },
   ctaOutlineText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 
-  slideControls: {
-    position: 'absolute', bottom: 12, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
+  slideControls: { position: 'absolute', bottom: 12, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
   slideArrows: { flexDirection: 'row', gap: 8 },
-  arrowBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  arrowText: { color: 'rgba(255,255,255,0.8)', fontSize: 20, lineHeight: 22 },
+  arrowBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
   dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)' },
   dotActive: { width: 20, borderRadius: 4, backgroundColor: '#fff' },
   slideCounter: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontFamily: 'monospace', marginLeft: 4 },
 
-  // Sections
   section: { paddingHorizontal: 18, paddingTop: 26 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  limitedPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
+  limitedPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
   limitedText: { fontSize: 10, fontWeight: '700' },
   viewAllPill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   viewAllText: { fontSize: 12, fontWeight: '600' },
 
-  // Category grid
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   catTile: { width: CARD_W, aspectRatio: 4 / 3, borderRadius: 14, overflow: 'hidden', position: 'relative' },
-  catBottomScrim: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%',
-    backgroundColor: 'rgba(5,12,24,0.72)',
-  },
+  catBottomScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%', backgroundColor: 'rgba(5,12,24,0.72)' },
   catContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 10 },
   catLabel: { color: '#fff', fontSize: 13, fontWeight: '700', marginBottom: 2 },
   catTagline: { color: 'rgba(255,255,255,0.65)', fontSize: 10, lineHeight: 13 },
 
-  // 2-col grid
   twoCol: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-
-  leftBadge: {
-    position: 'absolute', top: -4, right: -4, zIndex: 5,
-    backgroundColor: '#EF4444', borderRadius: 12,
-    paddingHorizontal: 8, paddingVertical: 3,
-  },
+  leftBadge: { position: 'absolute', top: -4, right: -4, zIndex: 5, backgroundColor: '#EF4444', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
   leftBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 
-  // See all CTA
   ctaRow: { alignItems: 'center', paddingTop: 26, paddingHorizontal: 18 },
-  seeAllBtn: { borderRadius: 50, paddingVertical: 14, width: '100%', alignItems: 'center' },
+  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 50, paddingVertical: 14, width: '100%', justifyContent: 'center' },
   seeAllText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
-  // Trust
-  trustSection: { margin: 18, marginTop: 26, borderRadius: 18, padding: 18, borderWidth: 1 },
-  trustHeading: { fontSize: 16, fontWeight: '800', marginBottom: 14, letterSpacing: -0.2 },
-  trustCard: { width: CARD_W, borderRadius: 12, padding: 14, borderWidth: 1 },
-  trustIcon: { fontSize: 22, marginBottom: 8 },
-  trustTitle: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  trustDesc: { fontSize: 11, lineHeight: 15 },
+  // Why Tick3t
+  whySection: { paddingHorizontal: 18, paddingTop: 32 },
+  whySubtitle: { fontSize: 13, marginBottom: 18, marginTop: 2 },
+  whyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  whyCard: { width: CARD_W, borderRadius: 16, borderWidth: 1, padding: 16 },
+  whyIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  whyTitle: { fontSize: 14, fontWeight: '800', marginBottom: 6, letterSpacing: -0.2 },
+  whyDesc: { fontSize: 11, lineHeight: 16 },
 
-  // Empty state
   emptyBox: { alignItems: 'center', paddingVertical: 48 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   emptyText: { fontSize: 14 },
 });
