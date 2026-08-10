@@ -117,95 +117,113 @@ export default function DiscoverScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {/* ── Nav bar ─────────────────────────────────────────────────────────── */}
-      <SafeAreaView edges={['top']} style={[styles.navbar, { backgroundColor: C.card, borderBottomColor: C.border }]}>
-        <View style={styles.navRow}>
-          <Logo size="md" />
-        </View>
-        {/* Search + Filter row */}
-        <View style={styles.searchRow}>
-          <View style={[styles.searchBar, { backgroundColor: C.surface, borderColor: C.border }]}>
-            <Ionicons name="search" size={17} color={C.textMuted} style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, { color: C.text }]}
-              placeholder="Search events, artists or venues…"
-              placeholderTextColor={C.textMuted}
-              value={searchQuery}
-              onChangeText={t => { setSearchQuery(t); setActiveCategory(null); }}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={17} color={C.textMuted} />
-              </Pressable>
-            )}
-          </View>
-
-          {/* Filter button */}
-          <Pressable
-            style={[
-              styles.filterBtn,
-              { backgroundColor: hasActiveFilters ? C.primary : C.surface, borderColor: hasActiveFilters ? C.primary : C.border },
-            ]}
-            onPress={() => setFilterVisible(true)}
-          >
-            <Ionicons name="options-outline" size={18} color={hasActiveFilters ? '#fff' : C.textSecondary} />
-            {activeFilterCount > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-              </View>
-            )}
-          </Pressable>
-        </View>
-
-        {/* Active filter chips */}
-        {hasActiveFilters && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeChips} contentContainerStyle={{ gap: 6, paddingBottom: 6 }}>
-            {activeFilters.location ? (
-              <View style={[styles.activeChip, { backgroundColor: C.primary + '20', borderColor: C.primary + '50' }]}>
-                <Ionicons name="location-outline" size={11} color={C.primary} />
-                <Text style={[styles.activeChipText, { color: C.primary }]}>{activeFilters.location}</Text>
-              </View>
-            ) : null}
-            {activeFilters.categories.map(cat => (
-              <View key={cat} style={[styles.activeChip, { backgroundColor: C.primary + '20', borderColor: C.primary + '50' }]}>
-                <Text style={[styles.activeChipText, { color: C.primary }]}>{cat}</Text>
-              </View>
-            ))}
-            {activeFilters.dateFilter !== 'Any time' && (
-              <View style={[styles.activeChip, { backgroundColor: C.primary + '20', borderColor: C.primary + '50' }]}>
-                <Ionicons name="calendar-outline" size={11} color={C.primary} />
-                <Text style={[styles.activeChipText, { color: C.primary }]}>{activeFilters.dateFilter}</Text>
-              </View>
-            )}
-            <Pressable
-              style={[styles.activeChip, { backgroundColor: '#EF444420', borderColor: '#EF444440' }]}
-              onPress={() => { setActiveFilters(DEFAULT_FILTERS); setActiveCategory(null); setSearchQuery(''); }}
-            >
-              <Text style={[styles.activeChipText, { color: '#F87171' }]}>Clear all</Text>
-              <Ionicons name="close" size={11} color="#F87171" />
-            </Pressable>
-          </ScrollView>
-        )}
-      </SafeAreaView>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* ── Hero slideshow ──────────────────────────────────────────────── */}
+        {/* ── Hero slideshow (full-bleed with overlaid search) ────────────── */}
         <View style={styles.heroWrap}>
+          {/* Background images */}
           {HERO_SLIDES.map((s, i) => (
             <Image key={s.id} source={{ uri: s.image }}
               style={[StyleSheet.absoluteFillObject, { opacity: i === slide ? 1 : 0 }]}
               resizeMode="cover"
             />
           ))}
+
+          {/* Gradient scrims */}
           <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-            <View style={styles.imgScrimFull} />
-            <View style={styles.imgScrimBottom} />
+            <LinearGradient
+              colors={['rgba(5,12,24,0.55)', 'transparent']}
+              style={{ height: 180 }}
+            />
+            <View style={{ flex: 1 }} />
+            <LinearGradient
+              colors={['transparent', 'rgba(5,12,24,0.85)']}
+              style={{ height: 280 }}
+            />
           </View>
 
+          {/* ── Top overlay: Logo + Search bar ─────────────────────────── */}
+          <SafeAreaView edges={['top']} style={styles.heroTopOverlay} pointerEvents="box-none">
+            {/* Logo row */}
+            <View style={styles.heroLogoRow}>
+              <Logo size="md" />
+            </View>
+
+            {/* Search + filter row */}
+            <View style={styles.heroSearchRow}>
+              <View style={styles.heroSearchBar}>
+                <Ionicons name="search" size={16} color="rgba(255,255,255,0.6)" style={styles.heroSearchIcon} />
+                <TextInput
+                  style={styles.heroSearchInput}
+                  placeholder="Search events, artists or venues…"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  value={searchQuery}
+                  onChangeText={t => { setSearchQuery(t); setActiveCategory(null); }}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.5)" />
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Filter button */}
+              <Pressable
+                style={[
+                  styles.heroFilterBtn,
+                  hasActiveFilters && { backgroundColor: C.primary, borderColor: C.primary },
+                ]}
+                onPress={() => setFilterVisible(true)}
+              >
+                <Ionicons name="options-outline" size={18} color="#fff" />
+                {activeFilterCount > 0 && (
+                  <View style={styles.filterBadge}>
+                    <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
+
+            {/* Active filter chips */}
+            {hasActiveFilters && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.heroChipsRow}
+                contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}
+              >
+                {activeFilters.location ? (
+                  <View style={styles.heroChip}>
+                    <Ionicons name="location-outline" size={11} color="#fff" />
+                    <Text style={styles.heroChipText}>{activeFilters.location}</Text>
+                  </View>
+                ) : null}
+                {activeFilters.categories.map(cat => (
+                  <View key={cat} style={styles.heroChip}>
+                    <Text style={styles.heroChipText}>{cat}</Text>
+                  </View>
+                ))}
+                {activeFilters.dateFilter !== 'Any time' && (
+                  <View style={styles.heroChip}>
+                    <Ionicons name="calendar-outline" size={11} color="#fff" />
+                    <Text style={styles.heroChipText}>{activeFilters.dateFilter}</Text>
+                  </View>
+                )}
+                <Pressable
+                  style={[styles.heroChip, { backgroundColor: 'rgba(239,68,68,0.5)', borderColor: 'rgba(239,68,68,0.6)' }]}
+                  onPress={() => { setActiveFilters(DEFAULT_FILTERS); setActiveCategory(null); setSearchQuery(''); }}
+                >
+                  <Text style={styles.heroChipText}>Clear all</Text>
+                  <Ionicons name="close" size={11} color="#fff" />
+                </Pressable>
+              </ScrollView>
+            )}
+          </SafeAreaView>
+
+          {/* ── Slide event info ─────────────────────────────────────────── */}
           <Animated.View style={[styles.slideInfo, { opacity: fadeAnim }]}>
             <View style={styles.heroCategoryBadge}>
               <Text style={styles.heroCategoryText}>{current.category}</Text>
@@ -410,22 +428,37 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  navbar: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 10 },
-  navRow: { paddingTop: 4, paddingBottom: 8 },
-  searchRow: { flexDirection: 'row', gap: 8 },
-  searchBar: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 44, borderRadius: 50, borderWidth: 1, paddingHorizontal: 14 },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
-  filterBtn: { width: 44, height: 44, borderRadius: 50, borderWidth: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  // Hero overlay (replaces separate navbar)
+  heroWrap: { width: '100%', height: 560, position: 'relative' },
+  heroTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  heroLogoRow: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
+  heroSearchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
+  heroSearchBar: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', height: 46,
+    borderRadius: 50, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(5,12,24,0.45)',
+    paddingHorizontal: 14,
+  },
+  heroSearchIcon: { marginRight: 8 },
+  heroSearchInput: { flex: 1, fontSize: 14, paddingVertical: 0, color: '#fff' },
+  heroFilterBtn: {
+    width: 46, height: 46, borderRadius: 50, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(5,12,24,0.45)',
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
+  },
   filterBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' },
   filterBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  activeChips: { marginTop: 8 },
-  activeChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
-  activeChipText: { fontSize: 11, fontWeight: '600' },
-
-  heroWrap: { width: '100%', height: 420, position: 'relative' },
-  imgScrimFull: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,12,24,0.30)' },
-  imgScrimBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 280, backgroundColor: 'rgba(5,12,24,0.72)' },
+  heroChipsRow: { marginBottom: 4 },
+  heroChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(5,12,24,0.5)',
+  },
+  heroChipText: { fontSize: 11, fontWeight: '600', color: '#fff' },
 
   slideInfo: { position: 'absolute', bottom: 52, left: 0, right: 0, paddingHorizontal: 20 },
   heroCategoryBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(22,163,74,0.9)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 50, marginBottom: 10 },
