@@ -3,19 +3,34 @@ import {
   View, Text, ScrollView, StyleSheet, Pressable, Image, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 
 const FILTERS = ['All', 'Music Festival', 'Art & Culture', 'Tech & Networking', 'Gaming', 'Fashion'];
 
 export default function MarketplaceScreen() {
   const { colors: C } = useTheme();
+  const { isAuthenticated } = useAuth();
   const { marketplace } = useApp();
+  const router = useRouter();
   const [active, setActive] = useState('All');
 
   const filtered = active === 'All' ? marketplace : marketplace.filter(l => l.eventCategory === active);
 
   const handleBuy = (listing: typeof marketplace[0]) => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Sign in to buy',
+        'You need a Tick3t account to purchase tickets.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
+        ]
+      );
+      return;
+    }
     Alert.alert(
       'Buy Ticket',
       `Purchase 1× ${listing.tierName} for ${listing.eventTitle}?\n\nResale Price: $${listing.resalePrice}\n\nSecured via Paynow · NFT on TON blockchain`,
@@ -27,6 +42,13 @@ export default function MarketplaceScreen() {
   };
 
   const handleOffer = (listing: typeof marketplace[0]) => {
+    if (!isAuthenticated) {
+      Alert.alert('Sign in to make offers', 'Create a free account to make offers on resale tickets.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
+      ]);
+      return;
+    }
     Alert.alert('Make Offer', 'Offer functionality coming soon — join the waitlist instead.', [{ text: 'OK' }]);
   };
 

@@ -8,16 +8,34 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
+import AuthPrompt from '@/components/AuthPrompt';
 
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
-  const { user: authUser, signOut } = useAuth();
+  const { user: authUser, signOut, isAuthenticated } = useAuth();
   const { tickets, updateUser, user } = useApp();
   const router = useRouter();
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(authUser?.name ?? user?.name ?? '');
   const [email, setEmail] = useState(authUser?.email ?? user?.email ?? '');
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={[{ flex: 1 }, { backgroundColor: C.background }]} edges={['top']}>
+        <AuthPrompt
+          screen="Your Profile"
+          description="Sign in to manage your account, view your ticket history, and connect your Paynow and TON wallets."
+          icon="person-circle-outline"
+          perks={[
+            'Edit your name, email and avatar',
+            'Track upcoming & attended events',
+            'Connect Paynow & TON NFT wallet',
+          ]}
+        />
+      </SafeAreaView>
+    );
+  }
 
   const upcoming = tickets.filter(t => t.status === 'upcoming').length;
   const past = tickets.filter(t => t.status === 'past').length;

@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { getAvailabilityPercent } from '@/utils/format';
 
@@ -11,6 +12,7 @@ export default function EventDetailScreen() {
   const C = Colors.dark;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const { getEventById, purchaseTicket } = useApp();
   const event = getEventById(id ?? '');
 
@@ -44,6 +46,17 @@ export default function EventDetailScreen() {
         { text: 'View Marketplace', onPress: () => router.push('/(tabs)/marketplace') },
         { text: 'Cancel', style: 'cancel' },
       ]);
+      return;
+    }
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Sign in to buy tickets',
+        'You need a Tick3t account to purchase tickets and receive your NFT key.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
+        ]
+      );
       return;
     }
     Alert.alert(

@@ -19,7 +19,7 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-// ── Route guard: redirects based on auth state ───────────────────────────────
+// ── Soft guard: only redirects away from auth screens once already signed in ──
 function AuthGuard() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
@@ -28,11 +28,11 @@ function AuthGuard() {
   useEffect(() => {
     if (isLoading) return;
     const inAuth = segments[0] === '(auth)';
-    if (!isAuthenticated && !inAuth) {
-      router.replace('/(auth)/sign-in');
-    } else if (isAuthenticated && inAuth) {
+    // If already signed in, don't show auth screens — go to app
+    if (isAuthenticated && inAuth) {
       router.replace('/(tabs)');
     }
+    // Otherwise: unauthenticated users land on tabs freely
   }, [isAuthenticated, isLoading, segments]);
 
   return null;

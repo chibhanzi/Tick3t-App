@@ -5,9 +5,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { PurchasedTicket } from '@/types';
 import ListForResaleModal from '@/components/ListForResaleModal';
+import AuthPrompt from '@/components/AuthPrompt';
 
 type Filter = 'upcoming' | 'past';
 
@@ -106,7 +108,25 @@ function VaultTicketCard({
 
 export default function VaultScreen() {
   const { colors: C } = useTheme();
+  const { isAuthenticated } = useAuth();
   const { tickets, listedTicketIds, addMarketplaceListing } = useApp();
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={[{ flex: 1 }, { backgroundColor: C.background }]} edges={['top']}>
+        <AuthPrompt
+          screen="Your Vault"
+          description="Sign in to access your digital event keys. Every ticket you purchase is stored here as a blockchain-verified NFT."
+          icon="wallet-outline"
+          perks={[
+            'View all your upcoming & past tickets',
+            'Access your NFT keys on TON blockchain',
+            'List tickets for resale in the Marketplace',
+          ]}
+        />
+      </SafeAreaView>
+    );
+  }
   const [filter, setFilter] = useState<Filter>('upcoming');
   const [modalTicket, setModalTicket] = useState<PurchasedTicket | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
