@@ -116,7 +116,7 @@ export default function VaultScreen() {
       <SafeAreaView style={[{ flex: 1 }, { backgroundColor: C.background }]} edges={['top']}>
         <AuthPrompt
           screen="Your Vault"
-          description="Sign in to access your digital event keys. Every ticket you purchase is stored here as a blockchain-verified NFT."
+          description="Sign in to access your tickets. Every ticket you purchase is stored here as a blockchain-verified NFT."
           icon="wallet-outline"
           perks={[
             'View all your upcoming & past tickets',
@@ -146,7 +146,7 @@ export default function VaultScreen() {
       <View style={styles.header}>
         <View>
           <Text style={[styles.title, { color: C.text }]}>My Vault</Text>
-          <Text style={[styles.subtitle, { color: C.textSecondary }]}>Your digital event keys</Text>
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>Your tickets</Text>
         </View>
         <View style={[styles.countBadge, { backgroundColor: C.primary + '22', borderColor: C.primary + '55' }]}>
           <Text style={[styles.countText, { color: C.primary }]}>{tickets.length} keys</Text>

@@ -95,15 +95,16 @@ export default function SplashAnimation({ onFinish }: SplashAnimationProps) {
       {/* Logo */}
       <Animated.View style={[styles.logoWrap, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
         <Image
-          source={require('@/assets/images/logo.png')}
+          source={require('@/assets/images/ticket-logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
+        <Text style={styles.brandName}>Tick3t</Text>
       </Animated.View>
 
       {/* Tagline */}
       <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
-        Digital Event Keys
+        Own Your Access
       </Animated.Text>
 
       {/* Loading dots */}
@@ -158,7 +159,15 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: LOGO_SIZE,
-    height: Math.round(LOGO_SIZE * 0.34),
+    height: LOGO_SIZE,
+  },
+  brandName: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
+    marginTop: 16,
+    textAlign: 'center',
   },
   tagline: {
     marginTop: 16,

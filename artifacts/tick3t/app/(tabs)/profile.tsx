@@ -185,7 +185,7 @@ export default function ProfileScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: C.textMuted }]}>Tick3t · Digital Event Key Platform</Text>
+          <Text style={[styles.footerText, { color: C.textMuted }]}>Tick3t · Own Your Access</Text>
           <Text style={[styles.footerText, { color: C.textMuted }]}>v1.0.0 · NFT powered by TON · Payments by Paynow</Text>
         </View>
 

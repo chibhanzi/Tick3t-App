@@ -51,7 +51,7 @@ export default function SignInScreen() {
             {/* Logo */}
             <View style={styles.logoArea}>
               <Logo size="lg" />
-              <Text style={styles.logoTagline}>Digital Event Keys</Text>
+              <Text style={styles.logoTagline}>Own Your Access</Text>
             </View>
 
             {/* Card */}

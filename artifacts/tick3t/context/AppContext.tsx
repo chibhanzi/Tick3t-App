@@ -163,6 +163,7 @@ interface AppContextValue {
   user: User | null;
   marketplace: MarketplaceListing[];
   purchaseTicket: (event: Event, tierId: string, quantity: number) => Promise<PurchasedTicket>;
+  purchaseMarketplaceTicket: (listing: MarketplaceListing) => Promise<PurchasedTicket>;
   getTicketById: (id: string) => PurchasedTicket | undefined;
   getEventById: (id: string) => Event | undefined;
   updateUser: (u: Partial<User>) => void;
@@ -230,6 +231,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const purchaseMarketplaceTicket = useCallback(async (listing: MarketplaceListing): Promise<PurchasedTicket> => {
+    const ticket: PurchasedTicket = {
+      id: Date.now().toString(),
+      eventId: listing.eventId,
+      eventTitle: listing.eventTitle,
+      eventDate: listing.eventDate,
+      eventTime: '',
+      eventLocation: listing.eventLocation,
+      eventImage: listing.eventImage,
+      tierName: listing.tierName,
+      tierPrice: listing.resalePrice,
+      quantity: listing.quantity,
+      totalPaid: listing.resalePrice * listing.quantity,
+      purchasedAt: new Date().toISOString(),
+      keyCode: `T3-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${listing.eventId}`,
+      holderName: user?.name ?? 'Guest',
+      status: 'upcoming',
+      isNFT: true,
+    };
+    const updated = [...tickets, ticket];
+    setTickets(updated);
+    await AsyncStorage.setItem(TICKETS_KEY, JSON.stringify(updated));
+    // Remove listing from marketplace (mark as sold)
+    setMarketplace(prev => prev.filter(l => l.id !== listing.id));
+    return ticket;
+  }, [tickets, user]);
+
   const addMarketplaceListing = useCallback((ticket: PurchasedTicket, resalePrice: number) => {
     const listing: MarketplaceListing = {
       id: `user-${Date.now()}`,
@@ -254,7 +282,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       events: MOCK_EVENTS, tickets, user, marketplace,
-      purchaseTicket, getTicketById, getEventById, updateUser,
+      purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, updateUser,
       addMarketplaceListing, listedTicketIds,
     }}>
       {children}

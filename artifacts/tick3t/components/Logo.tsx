@@ -1,42 +1,37 @@
 import React from 'react';
-import { Image, View, StyleSheet } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
+import { Image, View, Text, StyleSheet } from 'react-native';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
+  /** Force white text regardless of theme (for use over dark hero images) */
+  light?: boolean;
 }
 
 const SIZES = {
-  sm: { width: 90, height: 31 },
-  md: { width: 130, height: 44 },
-  lg: { width: 180, height: 61 },
+  sm: { icon: 22, font: 15 },
+  md: { icon: 28, font: 19 },
+  lg: { icon: 38, font: 26 },
 };
 
-export default function Logo({ size = 'md' }: LogoProps) {
-  const { isDark } = useTheme();
+export default function Logo({ size = 'md', light = false }: LogoProps) {
   const dim = SIZES[size];
+  const textColor = light ? '#fff' : '#fff';
 
-  return isDark ? (
-    <Image
-      source={require('@/assets/images/logo.png')}
-      style={[{ width: dim.width, height: dim.height }]}
-      resizeMode="contain"
-    />
-  ) : (
-    <View style={[styles.lightContainer, {
-      paddingHorizontal: dim.height * 0.3,
-      paddingVertical: dim.height * 0.12,
-      borderRadius: dim.height * 0.25,
-    }]}>
+  return (
+    <View style={styles.row}>
       <Image
-        source={require('@/assets/images/logo.png')}
-        style={[{ width: dim.width, height: dim.height }]}
+        source={require('@/assets/images/ticket-logo.png')}
+        style={{ width: dim.icon, height: dim.icon }}
         resizeMode="contain"
       />
+      <Text style={[styles.text, { fontSize: dim.font, color: textColor }]}>
+        Tick3t
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  lightContainer: { backgroundColor: '#0D1B2E' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  text: { fontWeight: '900', letterSpacing: -0.5 },
 });

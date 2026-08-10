@@ -121,7 +121,7 @@ export default function DiscoverScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* ── Hero slideshow (full-bleed with overlaid search) ────────────── */}
+        {/* ── Hero slideshow (full-bleed, search bar is sticky outside) ──── */}
         <View style={styles.heroWrap}>
           {/* Background images */}
           {HERO_SLIDES.map((s, i) => (
@@ -134,94 +134,15 @@ export default function DiscoverScreen() {
           {/* Gradient scrims */}
           <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
             <LinearGradient
-              colors={['rgba(5,12,24,0.55)', 'transparent']}
+              colors={['rgba(5,12,24,0.6)', 'transparent']}
               style={{ height: 180 }}
             />
             <View style={{ flex: 1 }} />
             <LinearGradient
-              colors={['transparent', 'rgba(5,12,24,0.85)']}
+              colors={['transparent', 'rgba(5,12,24,0.88)']}
               style={{ height: 280 }}
             />
           </View>
-
-          {/* ── Top overlay: Logo + Search bar ─────────────────────────── */}
-          <SafeAreaView edges={['top']} style={styles.heroTopOverlay} pointerEvents="box-none">
-            {/* Logo row */}
-            <View style={styles.heroLogoRow}>
-              <Logo size="md" />
-            </View>
-
-            {/* Search + filter row */}
-            <View style={styles.heroSearchRow}>
-              <View style={styles.heroSearchBar}>
-                <Ionicons name="search" size={16} color="rgba(255,255,255,0.6)" style={styles.heroSearchIcon} />
-                <TextInput
-                  style={styles.heroSearchInput}
-                  placeholder="Search events, artists or venues…"
-                  placeholderTextColor="rgba(255,255,255,0.45)"
-                  value={searchQuery}
-                  onChangeText={t => { setSearchQuery(t); setActiveCategory(null); }}
-                  returnKeyType="search"
-                />
-                {searchQuery.length > 0 && (
-                  <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                    <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.5)" />
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Filter button */}
-              <Pressable
-                style={[
-                  styles.heroFilterBtn,
-                  hasActiveFilters && { backgroundColor: C.primary, borderColor: C.primary },
-                ]}
-                onPress={() => setFilterVisible(true)}
-              >
-                <Ionicons name="options-outline" size={18} color="#fff" />
-                {activeFilterCount > 0 && (
-                  <View style={styles.filterBadge}>
-                    <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-            </View>
-
-            {/* Active filter chips */}
-            {hasActiveFilters && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.heroChipsRow}
-                contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}
-              >
-                {activeFilters.location ? (
-                  <View style={styles.heroChip}>
-                    <Ionicons name="location-outline" size={11} color="#fff" />
-                    <Text style={styles.heroChipText}>{activeFilters.location}</Text>
-                  </View>
-                ) : null}
-                {activeFilters.categories.map(cat => (
-                  <View key={cat} style={styles.heroChip}>
-                    <Text style={styles.heroChipText}>{cat}</Text>
-                  </View>
-                ))}
-                {activeFilters.dateFilter !== 'Any time' && (
-                  <View style={styles.heroChip}>
-                    <Ionicons name="calendar-outline" size={11} color="#fff" />
-                    <Text style={styles.heroChipText}>{activeFilters.dateFilter}</Text>
-                  </View>
-                )}
-                <Pressable
-                  style={[styles.heroChip, { backgroundColor: 'rgba(239,68,68,0.5)', borderColor: 'rgba(239,68,68,0.6)' }]}
-                  onPress={() => { setActiveFilters(DEFAULT_FILTERS); setActiveCategory(null); setSearchQuery(''); }}
-                >
-                  <Text style={styles.heroChipText}>Clear all</Text>
-                  <Ionicons name="close" size={11} color="#fff" />
-                </Pressable>
-              </ScrollView>
-            )}
-          </SafeAreaView>
 
           {/* ── Slide event info ─────────────────────────────────────────── */}
           <Animated.View style={[styles.slideInfo, { opacity: fadeAnim }]}>
@@ -416,6 +337,75 @@ export default function DiscoverScreen() {
         )}
       </ScrollView>
 
+      {/* ── Sticky search header (floats above ScrollView) ──────────────── */}
+      <SafeAreaView edges={['top']} style={styles.stickyHeader}>
+        <View style={styles.stickyLogoRow}>
+          <Logo size="md" light />
+        </View>
+        <View style={styles.stickySearchRow}>
+          <View style={styles.stickySearchBar}>
+            <Ionicons name="search" size={16} color="rgba(255,255,255,0.55)" style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.stickySearchInput}
+              placeholder="Search events, artists or venues…"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              value={searchQuery}
+              onChangeText={t => { setSearchQuery(t); setActiveCategory(null); }}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.45)" />
+              </Pressable>
+            )}
+          </View>
+          <Pressable
+            style={[styles.stickyFilterBtn, hasActiveFilters && { backgroundColor: C.primary, borderColor: C.primary }]}
+            onPress={() => setFilterVisible(true)}
+          >
+            <Ionicons name="options-outline" size={18} color="#fff" />
+            {activeFilterCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
+        {hasActiveFilters && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 8 }}
+            contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}
+          >
+            {activeFilters.location ? (
+              <View style={styles.stickyChip}>
+                <Ionicons name="location-outline" size={11} color="#fff" />
+                <Text style={styles.stickyChipText}>{activeFilters.location}</Text>
+              </View>
+            ) : null}
+            {activeFilters.categories.map(cat => (
+              <View key={cat} style={styles.stickyChip}>
+                <Text style={styles.stickyChipText}>{cat}</Text>
+              </View>
+            ))}
+            {activeFilters.dateFilter !== 'Any time' && (
+              <View style={styles.stickyChip}>
+                <Ionicons name="calendar-outline" size={11} color="#fff" />
+                <Text style={styles.stickyChipText}>{activeFilters.dateFilter}</Text>
+              </View>
+            )}
+            <Pressable
+              style={[styles.stickyChip, { backgroundColor: 'rgba(239,68,68,0.55)', borderColor: 'rgba(239,68,68,0.7)' }]}
+              onPress={() => { setActiveFilters(DEFAULT_FILTERS); setActiveCategory(null); setSearchQuery(''); }}
+            >
+              <Text style={styles.stickyChipText}>Clear all</Text>
+              <Ionicons name="close" size={11} color="#fff" />
+            </Pressable>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+
       {/* Filter modal */}
       <FilterModal
         visible={filterVisible}
@@ -428,37 +418,39 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Hero overlay (replaces separate navbar)
-  heroWrap: { width: '100%', height: 560, position: 'relative' },
-  heroTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  heroLogoRow: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
-  heroSearchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
-  heroSearchBar: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', height: 46,
+  // ── Sticky header (sits above ScrollView, absolute positioned) ──────────
+  stickyHeader: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30,
+    backgroundColor: 'rgba(5,12,24,0.78)',
+  },
+  stickyLogoRow: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+  stickySearchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
+  stickySearchBar: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', height: 44,
     borderRadius: 50, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(5,12,24,0.45)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     paddingHorizontal: 14,
   },
-  heroSearchIcon: { marginRight: 8 },
-  heroSearchInput: { flex: 1, fontSize: 14, paddingVertical: 0, color: '#fff' },
-  heroFilterBtn: {
-    width: 46, height: 46, borderRadius: 50, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(5,12,24,0.45)',
+  stickySearchInput: { flex: 1, fontSize: 14, paddingVertical: 0, color: '#fff' },
+  stickyFilterBtn: {
+    width: 44, height: 44, borderRadius: 50, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
   filterBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' },
   filterBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  heroChipsRow: { marginBottom: 4 },
-  heroChip: {
+  stickyChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(5,12,24,0.5)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  heroChipText: { fontSize: 11, fontWeight: '600', color: '#fff' },
+  stickyChipText: { fontSize: 11, fontWeight: '600', color: '#fff' },
+
+  // ── Hero ─────────────────────────────────────────────────────────────────
+  heroWrap: { width: '100%', height: 560, position: 'relative' },
 
   slideInfo: { position: 'absolute', bottom: 52, left: 0, right: 0, paddingHorizontal: 20 },
   heroCategoryBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(22,163,74,0.9)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 50, marginBottom: 10 },

@@ -51,7 +51,7 @@ export default function EventDetailScreen() {
     if (!isAuthenticated) {
       Alert.alert(
         'Sign in to buy tickets',
-        'You need a Tick3t account to purchase tickets and receive your NFT key.',
+        'You need a Tick3t account to purchase tickets.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
@@ -65,7 +65,7 @@ export default function EventDetailScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Get Key →',
+          text: 'Get Ticket →',
           onPress: async () => {
             setBuying(true);
             try {
@@ -248,7 +248,7 @@ export default function EventDetailScreen() {
           disabled={buying}
         >
           <Text style={styles.buyBtnText}>
-            {buying ? 'Processing…' : soldOut ? 'View Resale' : 'Get Key →'}
+            {buying ? 'Processing…' : soldOut ? 'View Resale' : 'Get Ticket →'}
           </Text>
         </Pressable>
       </View>
