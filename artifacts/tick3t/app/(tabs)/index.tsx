@@ -57,6 +57,7 @@ export default function DiscoverScreen() {
   const { colors: C, isDark } = useTheme();
   const router = useRouter();
   const { events } = useApp();
+  const scrollRef = useRef<ScrollView>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<EventCategory | null>(null);
@@ -119,7 +120,7 @@ export default function DiscoverScreen() {
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero slideshow (full-bleed, search bar is sticky outside) ──── */}
         <View style={styles.heroWrap}>
@@ -165,7 +166,10 @@ export default function DiscoverScreen() {
               <Pressable style={styles.ctaWhite} onPress={() => router.push(`/event/${current.id}`)}>
                 <Text style={styles.ctaWhiteText}>Get Tickets</Text>
               </Pressable>
-              <Pressable style={styles.ctaOutline}>
+              <Pressable
+                style={styles.ctaOutline}
+                onPress={() => scrollRef.current?.scrollTo({ y: 580, animated: true })}
+              >
                 <Text style={styles.ctaOutlineText}>Browse Events</Text>
               </Pressable>
             </View>
@@ -264,9 +268,12 @@ export default function DiscoverScreen() {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: C.text }]}>Trending Events</Text>
-                <View style={[styles.viewAllPill, { borderColor: C.border }]}>
+              <Pressable
+                  style={[styles.viewAllPill, { borderColor: C.border }]}
+                  onPress={() => { setSearchQuery(''); setActiveCategory(null); setActiveFilters(DEFAULT_FILTERS); scrollRef.current?.scrollTo({ y: 580, animated: true }); }}
+                >
                   <Text style={[styles.viewAllText, { color: C.textSecondary }]}>View all</Text>
-                </View>
+                </Pressable>
               </View>
               <View style={styles.twoCol}>
                 {trending.map(e => <EventCard key={e.id} event={e} variant="grid" />)}
@@ -275,7 +282,10 @@ export default function DiscoverScreen() {
 
             {/* ── See All CTA ── */}
             <View style={styles.ctaRow}>
-              <Pressable style={[styles.seeAllBtn, { backgroundColor: C.primary }]}>
+              <Pressable
+                style={[styles.seeAllBtn, { backgroundColor: C.primary }]}
+                onPress={() => router.push('/(tabs)/marketplace')}
+              >
                 <Ionicons name="calendar-outline" size={16} color="#fff" />
                 <Text style={styles.seeAllText}>See All Events</Text>
               </Pressable>

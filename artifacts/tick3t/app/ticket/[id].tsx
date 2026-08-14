@@ -1,7 +1,9 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, Image, SafeAreaView, Alert,
+  View, Text, ScrollView, StyleSheet, Pressable, Image, Alert, Share, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '@/constants/colors';
@@ -17,7 +19,7 @@ export default function TicketDetailScreen() {
 
   if (!ticket) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]} edges={['top']}>
         <Pressable style={styles.closeBtn} onPress={() => router.back()}>
           <Text style={{ color: C.text, fontSize: 24 }}>✕</Text>
         </Pressable>
@@ -39,15 +41,42 @@ export default function TicketDetailScreen() {
     isNFT: ticket.isNFT,
   });
 
+  const handleCopyCode = async () => {
+    if (Platform.OS === 'web') {
+      try {
+        await (navigator as any).clipboard?.writeText(ticket.keyCode);
+        Alert.alert('Copied!', `Key code ${ticket.keyCode} copied to clipboard.`);
+      } catch {
+        Alert.alert('Key Code', ticket.keyCode);
+      }
+    } else {
+      Alert.alert('Key Code', ticket.keyCode, [{ text: 'OK' }]);
+    }
+  };
+
+  const handleShare = async () => {
+    const text = `🎟 ${ticket.eventTitle}\n${ticket.tierName} × ${ticket.quantity}\n📍 ${ticket.eventLocation}\n\nKey: ${ticket.keyCode}\n\nPowered by Tick3t — Own Your Access`;
+    if (Platform.OS === 'web') {
+      try { await (navigator as any).share?.({ text }); } catch {
+        try { await (navigator as any).clipboard?.writeText(text); Alert.alert('Copied!', 'Ticket info copied to clipboard.'); }
+        catch { Alert.alert('Share', text); }
+      }
+    } else {
+      await Share.share({ message: text });
+    }
+  };
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable style={styles.closeBtn} onPress={() => router.back()}>
-          <Text style={[styles.closeText, { color: C.textSecondary }]}>✕ Close</Text>
+        <Pressable style={styles.backRow} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={18} color={C.textSecondary} />
+          <Text style={[styles.closeText, { color: C.textSecondary }]}>Back</Text>
         </Pressable>
-        <Pressable onPress={() => Alert.alert('Share', 'Ticket sharing coming soon!')}>
-          <Text style={[styles.shareText, { color: C.primary }]}>Share ↗</Text>
+        <Pressable style={styles.shareRow} onPress={handleShare}>
+          <Ionicons name="share-outline" size={16} color={C.primary} />
+          <Text style={[styles.shareText, { color: C.primary }]}>Share</Text>
         </Pressable>
       </View>
 
@@ -70,7 +99,7 @@ export default function TicketDetailScreen() {
                 )}
               </View>
               <Text style={styles.eventTitle}>{ticket.eventTitle}</Text>
-              <Text style={styles.eventSub}>{ticket.eventDate} · {ticket.eventTime}</Text>
+              <Text style={styles.eventSub}>{ticket.eventDate}{ticket.eventTime ? ` · ${ticket.eventTime}` : ''}</Text>
               <Text style={styles.eventSub}>📍 {ticket.eventLocation}</Text>
             </View>
           </View>
@@ -93,10 +122,12 @@ export default function TicketDetailScreen() {
                 backgroundColor="#fff"
               />
             </View>
-            <Pressable onPress={() => Alert.alert('Key Code', ticket.keyCode)}>
+            {/* Tap to copy key code */}
+            <Pressable onPress={handleCopyCode} style={styles.keyCodeRow}>
               <Text style={[styles.keyCode, { color: C.textMuted }]}>{ticket.keyCode}</Text>
+              <Ionicons name="copy-outline" size={14} color={C.textMuted} style={{ marginLeft: 6 }} />
             </Pressable>
-            <Text style={[styles.tapHint, { color: C.textMuted }]}>Tap code to copy</Text>
+            <Text style={[styles.tapHint, { color: C.textMuted }]}>Tap to copy key code</Text>
           </View>
 
           {/* Perforation */}
@@ -135,6 +166,7 @@ export default function TicketDetailScreen() {
               style={[styles.walletBtn, { borderColor: '#6366F1' }]}
               onPress={() => Alert.alert('Connect Wallet', 'TON wallet integration coming soon.')}
             >
+              <Ionicons name="wallet-outline" size={14} color="#818CF8" />
               <Text style={[styles.walletBtnText, { color: '#818CF8' }]}>Connect TON Wallet</Text>
             </Pressable>
           </View>
@@ -143,7 +175,9 @@ export default function TicketDetailScreen() {
         {/* Payment info */}
         <View style={[styles.payCard, { backgroundColor: C.card, borderColor: C.border }]}>
           <Text style={[styles.payTitle, { color: C.textMuted }]}>🔒 Payment secured via Paynow</Text>
-          <Text style={[styles.payDesc, { color: C.textMuted }]}>Your transaction is encrypted and verified. Receipt sent to {ticket.holderName}.</Text>
+          <Text style={[styles.payDesc, { color: C.textMuted }]}>
+            Your transaction is encrypted and verified. Receipt sent to {ticket.holderName}.
+          </Text>
         </View>
 
         <View style={{ height: 40 }} />
@@ -155,9 +189,11 @@ export default function TicketDetailScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  closeBtn: {},
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   closeText: { fontSize: 15, fontWeight: '600' },
   shareText: { fontSize: 15, fontWeight: '700' },
+  closeBtn: {},
 
   scroll: { paddingHorizontal: 20, paddingBottom: 20 },
 
@@ -182,7 +218,8 @@ const styles = StyleSheet.create({
   qrSection: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20 },
   presentLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 },
   qrWrapper: { padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 16 },
-  keyCode: { fontFamily: 'monospace', fontSize: 14, letterSpacing: 2, marginBottom: 4 },
+  keyCodeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  keyCode: { fontFamily: 'monospace', fontSize: 14, letterSpacing: 2 },
   tapHint: { fontSize: 10, letterSpacing: 0.5 },
 
   detailsGrid: { paddingHorizontal: 20, paddingBottom: 20 },
@@ -193,7 +230,7 @@ const styles = StyleSheet.create({
   nftCard: { borderRadius: 14, padding: 16, borderWidth: 1, marginBottom: 12 },
   nftTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8 },
   nftDesc: { fontSize: 13, lineHeight: 20, marginBottom: 14 },
-  walletBtn: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, alignSelf: 'flex-start' },
+  walletBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, alignSelf: 'flex-start' },
   walletBtnText: { fontSize: 13, fontWeight: '700' },
 
   payCard: { borderRadius: 12, padding: 14, borderWidth: 1 },

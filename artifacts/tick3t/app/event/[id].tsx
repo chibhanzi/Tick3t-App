@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, SafeAreaView,
+  View, Text, Image, ScrollView, StyleSheet, Pressable, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';

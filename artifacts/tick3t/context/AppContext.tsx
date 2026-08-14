@@ -4,8 +4,35 @@ import { Event, PurchasedTicket, User } from '@/types';
 
 const TICKETS_KEY = 'tick3t.vault.tickets';
 const USER_KEY = 'tick3t.mock-auth.user';
+const MARKETPLACE_KEY = 'tick3t.marketplace.listings';
+const LISTED_IDS_KEY = 'tick3t.marketplace.listed-ids';
 
-// Real events from digital-event-key-74
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export type EventCategory =
+  | 'Music Festival' | 'Art & Culture' | 'Tech & Networking'
+  | 'Gaming' | 'Beach Party' | 'Fashion';
+
+export type MarketplaceListing = {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  eventImage: string;
+  eventCategory: EventCategory;
+  tierName: string;
+  originalPrice: number;
+  resalePrice: number;
+  seller: string;
+  sellerVerified: boolean;
+  quantity: number;
+  listed: string;
+  ticketId?: string; // vault ticket this was listed from (user listings only)
+};
+
+// ── Mock data ─────────────────────────────────────────────────────────────────
+
 const MOCK_EVENTS: Event[] = [
   {
     id: '1',
@@ -148,30 +175,34 @@ const MOCK_EVENTS: Event[] = [
   },
 ];
 
-export const INITIAL_MARKETPLACE = [
-  { id: 'm1', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture' as const, tierName: 'General Admission', originalPrice: 48, resalePrice: 110, seller: 'alex_nyc', sellerVerified: true, quantity: 1, listed: '2 hours ago' },
-  { id: 'm2', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture' as const, tierName: 'General Admission', originalPrice: 48, resalePrice: 95, seller: 'nft_collector', sellerVerified: false, quantity: 2, listed: '5 hours ago' },
-  { id: 'm3', eventId: '1', eventTitle: 'Bass Drop Festival 2024', eventDate: 'March 15, 2024', eventLocation: 'Miami Beach Arena', eventImage: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=400&h=300&fit=crop', eventCategory: 'Music Festival' as const, tierName: 'VIP', originalPrice: 189, resalePrice: 220, seller: 'miami_party', sellerVerified: true, quantity: 1, listed: '1 day ago' },
-  { id: 'm4', eventId: '6', eventTitle: 'Fashion Week Gala', eventDate: 'April 20, 2024', eventLocation: 'Manhattan Design Center', eventImage: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=300&fit=crop', eventCategory: 'Fashion' as const, tierName: 'General', originalPrice: 360, resalePrice: 420, seller: 'style_trader', sellerVerified: true, quantity: 1, listed: '3 days ago' },
+export const INITIAL_MARKETPLACE: MarketplaceListing[] = [
+  { id: 'm1', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture', tierName: 'General Admission', originalPrice: 48, resalePrice: 110, seller: 'alex_nyc', sellerVerified: true, quantity: 1, listed: '2 hours ago' },
+  { id: 'm2', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture', tierName: 'General Admission', originalPrice: 48, resalePrice: 95, seller: 'nft_collector', sellerVerified: false, quantity: 2, listed: '5 hours ago' },
+  { id: 'm3', eventId: '1', eventTitle: 'Bass Drop Festival 2024', eventDate: 'March 15, 2024', eventLocation: 'Miami Beach Arena', eventImage: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=400&h=300&fit=crop', eventCategory: 'Music Festival', tierName: 'VIP', originalPrice: 189, resalePrice: 220, seller: 'miami_party', sellerVerified: true, quantity: 1, listed: '1 day ago' },
+  { id: 'm4', eventId: '6', eventTitle: 'Fashion Week Gala', eventDate: 'April 20, 2024', eventLocation: 'Manhattan Design Center', eventImage: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=300&fit=crop', eventCategory: 'Fashion', tierName: 'General', originalPrice: 360, resalePrice: 420, seller: 'style_trader', sellerVerified: true, quantity: 1, listed: '3 days ago' },
 ];
 
-export type MarketplaceListing = typeof INITIAL_MARKETPLACE[0];
+// ── Context interface ─────────────────────────────────────────────────────────
 
 interface AppContextValue {
   events: Event[];
   tickets: PurchasedTicket[];
   user: User | null;
   marketplace: MarketplaceListing[];
+  listedTicketIds: Set<string>;
   purchaseTicket: (event: Event, tierId: string, quantity: number) => Promise<PurchasedTicket>;
   purchaseMarketplaceTicket: (listing: MarketplaceListing) => Promise<PurchasedTicket>;
   getTicketById: (id: string) => PurchasedTicket | undefined;
   getEventById: (id: string) => Event | undefined;
   updateUser: (u: Partial<User>) => void;
   addMarketplaceListing: (ticket: PurchasedTicket, resalePrice: number) => void;
-  listedTicketIds: Set<string>;
+  cancelListing: (listingId: string) => void;
+  transferTicket: (ticketId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
+
+// ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tickets, setTickets] = useState<PurchasedTicket[]>([]);
@@ -180,11 +211,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>({
     id: '1',
     name: 'Guest User',
-    email: 'guest@tick3rt.com',
+    email: 'guest@tick3t.com',
     role: 'user',
     isVerified: false,
   });
 
+  // Restore persisted state on mount
   useEffect(() => {
     AsyncStorage.getItem(TICKETS_KEY).then(raw => {
       if (raw) setTickets(JSON.parse(raw));
@@ -192,6 +224,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(USER_KEY).then(raw => {
       if (raw) setUser(JSON.parse(raw));
     });
+    AsyncStorage.getItem(MARKETPLACE_KEY).then(raw => {
+      if (raw) {
+        try { setMarketplace(JSON.parse(raw)); } catch { /* ignore corrupt data */ }
+      }
+    });
+    AsyncStorage.getItem(LISTED_IDS_KEY).then(raw => {
+      if (raw) {
+        try { setListedTicketIds(new Set(JSON.parse(raw))); } catch { /* ignore */ }
+      }
+    });
+  }, []);
+
+  // Helper: persist marketplace + listedIds together
+  const persistMarketplace = useCallback(async (listings: MarketplaceListing[], ids: Set<string>) => {
+    await AsyncStorage.setItem(MARKETPLACE_KEY, JSON.stringify(listings));
+    await AsyncStorage.setItem(LISTED_IDS_KEY, JSON.stringify([...ids]));
   }, []);
 
   const purchaseTicket = useCallback(async (event: Event, tierId: string, quantity: number): Promise<PurchasedTicket> => {
@@ -220,17 +268,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return ticket;
   }, [tickets, user]);
 
-  const getTicketById = useCallback((id: string) => tickets.find(t => t.id === id), [tickets]);
-  const getEventById = useCallback((id: string) => MOCK_EVENTS.find(e => e.id === id), []);
-
-  const updateUser = useCallback((updates: Partial<User>) => {
-    setUser(prev => {
-      const updated = { ...prev, ...updates };
-      AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
   const purchaseMarketplaceTicket = useCallback(async (listing: MarketplaceListing): Promise<PurchasedTicket> => {
     const ticket: PurchasedTicket = {
       id: Date.now().toString(),
@@ -250,15 +287,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       status: 'upcoming',
       isNFT: true,
     };
-    const updated = [...tickets, ticket];
-    setTickets(updated);
-    await AsyncStorage.setItem(TICKETS_KEY, JSON.stringify(updated));
-    // Remove listing from marketplace (mark as sold)
-    setMarketplace(prev => prev.filter(l => l.id !== listing.id));
-    return ticket;
-  }, [tickets, user]);
+    const updatedTickets = [...tickets, ticket];
+    setTickets(updatedTickets);
+    await AsyncStorage.setItem(TICKETS_KEY, JSON.stringify(updatedTickets));
 
-  const addMarketplaceListing = useCallback((ticket: PurchasedTicket, resalePrice: number) => {
+    // Remove listing, update listedIds if it was a user listing
+    const updatedMarket = marketplace.filter(l => l.id !== listing.id);
+    const updatedIds = new Set(listedTicketIds);
+    if (listing.ticketId) updatedIds.delete(listing.ticketId);
+    setMarketplace(updatedMarket);
+    setListedTicketIds(updatedIds);
+    await persistMarketplace(updatedMarket, updatedIds);
+    return ticket;
+  }, [tickets, user, marketplace, listedTicketIds, persistMarketplace]);
+
+  const addMarketplaceListing = useCallback(async (ticket: PurchasedTicket, resalePrice: number) => {
+    // Resolve category from events
+    const event = MOCK_EVENTS.find(e => e.id === ticket.eventId);
     const listing: MarketplaceListing = {
       id: `user-${Date.now()}`,
       eventId: ticket.eventId,
@@ -266,7 +311,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       eventDate: ticket.eventDate,
       eventLocation: ticket.eventLocation,
       eventImage: ticket.eventImage,
-      eventCategory: 'Music Festival' as const, // fallback; real lookup would use getEventById
+      eventCategory: (event?.category as EventCategory) ?? 'Music Festival',
       tierName: ticket.tierName,
       originalPrice: ticket.tierPrice,
       resalePrice,
@@ -274,16 +319,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       sellerVerified: user?.isVerified ?? false,
       quantity: ticket.quantity,
       listed: 'Just now',
+      ticketId: ticket.id,
     };
-    setMarketplace(prev => [listing, ...prev]);
-    setListedTicketIds(prev => new Set([...prev, ticket.id]));
-  }, [user]);
+    const updatedMarket = [listing, ...marketplace];
+    const updatedIds = new Set([...listedTicketIds, ticket.id]);
+    setMarketplace(updatedMarket);
+    setListedTicketIds(updatedIds);
+    await persistMarketplace(updatedMarket, updatedIds);
+  }, [user, marketplace, listedTicketIds, persistMarketplace]);
+
+  const cancelListing = useCallback(async (listingId: string) => {
+    const listing = marketplace.find(l => l.id === listingId);
+    const updatedMarket = marketplace.filter(l => l.id !== listingId);
+    const updatedIds = new Set(listedTicketIds);
+    if (listing?.ticketId) updatedIds.delete(listing.ticketId);
+    setMarketplace(updatedMarket);
+    setListedTicketIds(updatedIds);
+    await persistMarketplace(updatedMarket, updatedIds);
+  }, [marketplace, listedTicketIds, persistMarketplace]);
+
+  const transferTicket = useCallback(async (ticketId: string) => {
+    // Remove ticket from vault; if listed, also remove that listing
+    const listing = marketplace.find(l => l.ticketId === ticketId);
+    const updatedTickets = tickets.filter(t => t.id !== ticketId);
+    setTickets(updatedTickets);
+    await AsyncStorage.setItem(TICKETS_KEY, JSON.stringify(updatedTickets));
+    if (listing) {
+      const updatedMarket = marketplace.filter(l => l.id !== listing.id);
+      const updatedIds = new Set(listedTicketIds);
+      updatedIds.delete(ticketId);
+      setMarketplace(updatedMarket);
+      setListedTicketIds(updatedIds);
+      await persistMarketplace(updatedMarket, updatedIds);
+    }
+  }, [tickets, marketplace, listedTicketIds, persistMarketplace]);
+
+  const getTicketById = useCallback((id: string) => tickets.find(t => t.id === id), [tickets]);
+  const getEventById = useCallback((id: string) => MOCK_EVENTS.find(e => e.id === id), []);
+
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser(prev => {
+      const updated = { ...prev, ...updates };
+      AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   return (
     <AppContext.Provider value={{
-      events: MOCK_EVENTS, tickets, user, marketplace,
-      purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, updateUser,
-      addMarketplaceListing, listedTicketIds,
+      events: MOCK_EVENTS, tickets, user, marketplace, listedTicketIds,
+      purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById,
+      updateUser, addMarketplaceListing, cancelListing, transferTicket,
     }}>
       {children}
     </AppContext.Provider>

@@ -1,0 +1,1 @@
+- [React hooks before early returns](hooks-before-returns.md) — always declare all hooks before any conditional returns, even auth guards; React will crash silently on web if hooks come after.
