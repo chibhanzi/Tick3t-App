@@ -15,12 +15,15 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const { getEventById, purchaseTicket, followedOrganizers, toggleFollowOrganizer, connectedSocials } = useApp();
+  const {
+    getEventById, purchaseTicket, followedOrganizers, toggleFollowOrganizer, connectedSocials,
+    toggleWaitlist, toggleWatchlist, joinPool, joinedWaitlist, watchlist, joinedPools,
+    getWaitlistCount, getPoolData,
+  } = useApp();
   const event = getEventById(id ?? '');
 
   const [selectedTier, setSelectedTier] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [liked, setLiked] = useState(false);
   const [buying, setBuying] = useState(false);
 
   if (!event) {
@@ -41,15 +44,42 @@ export default function EventDetailScreen() {
   const total = tier.price * quantity;
   const availPct = getAvailabilityPercent(event.available, event.total);
   const almostGone = !soldOut && availPct >= 70;
+  const inWaitlist = joinedWaitlist.has(event.id);
+  const isWatched = watchlist.has(event.id);
+  const inPool = joinedPools.has(event.id);
 
-  const handleBuy = async () => {
-    if (soldOut) {
-      Alert.alert('Sold Out', 'This event is sold out. Check the Marketplace for resale tickets.', [
-        { text: 'View Marketplace', onPress: () => router.push('/(tabs)/marketplace') },
+  const handleWaitlist = () => {
+    if (!isAuthenticated) {
+      Alert.alert('Sign in required', 'Create a free account to join the waitlist.', [
         { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
       ]);
       return;
     }
+    toggleWaitlist(event.id);
+  };
+
+  const handleJoinPool = () => {
+    if (!isAuthenticated) {
+      Alert.alert('Sign in required', 'Create a free account to join the ticket pool.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
+      ]);
+      return;
+    }
+    const pool = getPoolData(event.id);
+    const share = Math.round((event.tiers[0]?.price ?? 50) / pool.target);
+    Alert.alert(
+      'Join Ticket Pool',
+      `Commit $${share} to the pool.\n\nOnce ${pool.target} fans are in, the organiser releases a ticket lot and one pool member wins a ticket at face value. Everyone else gets a full refund.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Commit $${share} →`, onPress: () => joinPool(event.id) },
+      ]
+    );
+  };
+
+  const handleBuy = async () => {
     if (!isAuthenticated) {
       Alert.alert(
         'Sign in to buy tickets',
@@ -92,8 +122,8 @@ export default function EventDetailScreen() {
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backText}>← Back</Text>
           </Pressable>
-          <Pressable style={styles.heartBtn} onPress={() => setLiked(!liked)}>
-            <Text style={styles.heartText}>{liked ? '❤️' : '🤍'}</Text>
+          <Pressable style={styles.heartBtn} onPress={() => toggleWatchlist(event.id)}>
+            <Ionicons name={isWatched ? 'heart' : 'heart-outline'} size={22} color={isWatched ? '#F87171' : '#fff'} />
           </Pressable>
           <View style={styles.heroContent}>
             <View style={styles.heroBadges}>
@@ -258,90 +288,191 @@ export default function EventDetailScreen() {
             </View>
           </View>
 
-          {/* Ticket tier selector */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.text }]}>Select Ticket Type</Text>
-            {event.tiers.map((t, i) => (
-              <Pressable
-                key={t.id}
-                style={[
-                  styles.tierCard,
-                  { backgroundColor: C.card, borderColor: selectedTier === i ? C.primary : C.border },
-                  selectedTier === i && { borderWidth: 2 },
-                ]}
-                onPress={() => setSelectedTier(i)}
-              >
-                <View style={styles.tierHeader}>
-                  <View>
-                    <Text style={[styles.tierName, { color: C.text }]}>{t.name}</Text>
-                    <Text style={[styles.tierPrice, { color: C.primary }]}>${t.price}</Text>
+          {soldOut ? (
+            <>
+              {/* ── Waitlist ──────────────────────── */}
+              <View style={styles.section}>
+                <View style={[styles.waitlistCard, { backgroundColor: C.card, borderColor: C.border }]}>
+                  <View style={styles.waitlistTop}>
+                    <View style={[styles.waitlistIconBox, { backgroundColor: '#EF444418' }]}>
+                      <Ionicons name="time-outline" size={22} color="#F87171" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.waitlistTitle, { color: C.text }]}>This event is sold out</Text>
+                      <Text style={[styles.waitlistMeta, { color: '#F87171' }]}>
+                        {getWaitlistCount(event.id).toLocaleString()} people are waiting
+                      </Text>
+                    </View>
                   </View>
-                  <View style={[styles.tierRadio, { borderColor: selectedTier === i ? C.primary : C.border }]}>
-                    {selectedTier === i && <View style={[styles.tierRadioFill, { backgroundColor: C.primary }]} />}
-                  </View>
+                  <Text style={[styles.waitlistDesc, { color: C.textSecondary }]}>
+                    Join the waitlist and we'll notify you the moment a ticket is released — or when the organiser announces their next event.
+                  </Text>
+                  <Pressable
+                    style={[styles.waitlistBtn, inWaitlist
+                      ? { backgroundColor: '#22c55e15', borderColor: '#22c55e55', borderWidth: 1 }
+                      : { backgroundColor: '#EF4444' }]}
+                    onPress={handleWaitlist}
+                  >
+                    <Ionicons
+                      name={inWaitlist ? 'checkmark-circle' : 'notifications-outline'}
+                      size={18}
+                      color={inWaitlist ? '#22c55e' : '#fff'}
+                    />
+                    <Text style={[styles.waitlistBtnText, inWaitlist && { color: '#22c55e' }]}>
+                      {inWaitlist ? "You're on the waitlist ✓" : `Join ${getWaitlistCount(event.id).toLocaleString()} on the waitlist`}
+                    </Text>
+                  </Pressable>
                 </View>
-                <View style={styles.tierPerks}>
-                  {t.perks.map(p => (
-                    <Text key={p} style={[styles.tierPerk, { color: C.textSecondary }]}>✓ {p}</Text>
-                  ))}
-                </View>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Quantity picker */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.text }]}>Quantity</Text>
-            <View style={styles.quantityRow}>
-              <Pressable
-                style={[styles.qtyBtn, { backgroundColor: C.card, borderColor: C.border }]}
-                onPress={() => setQuantity(q => Math.max(1, q - 1))}
-              >
-                <Text style={[styles.qtyBtnText, { color: C.text }]}>−</Text>
-              </Pressable>
-              <Text style={[styles.qtyValue, { color: C.text }]}>{quantity}</Text>
-              <Pressable
-                style={[styles.qtyBtn, { backgroundColor: C.card, borderColor: C.border }]}
-                onPress={() => setQuantity(q => Math.min(10, q + 1))}
-              >
-                <Text style={[styles.qtyBtnText, { color: C.text }]}>+</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Trust signals */}
-          <View style={[styles.trustRow, { backgroundColor: C.card, borderColor: C.border }]}>
-            {[
-              { icon: '🔒', text: 'Secure via Paynow' },
-              { icon: '⬡', text: 'NFT on TON blockchain' },
-              { icon: '✓', text: 'Verified organizer' },
-            ].map((t, i) => (
-              <View key={i} style={styles.trustItem}>
-                <Text style={styles.trustIcon}>{t.icon}</Text>
-                <Text style={[styles.trustText, { color: C.textMuted }]}>{t.text}</Text>
               </View>
-            ))}
-          </View>
+
+              {/* ── Ticket Pool ───────────────────── */}
+              {(() => {
+                const pool = getPoolData(event.id);
+                const pct = Math.round((pool.raised / pool.target) * 100);
+                const share = Math.round((event.tiers[0]?.price ?? 50) / pool.target);
+                return (
+                  <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: C.text }]}>Ticket Pool</Text>
+                    <View style={[styles.poolCard, { backgroundColor: C.card, borderColor: C.border }]}>
+                      <View style={styles.poolHeader}>
+                        <View style={[styles.poolIconBox, { backgroundColor: C.primary + '18' }]}>
+                          <Ionicons name="people-outline" size={20} color={C.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.poolTitle, { color: C.text }]}>Pool together, win a spot</Text>
+                          <Text style={[styles.poolMeta, { color: C.textMuted }]}>
+                            {pool.contributors} / {pool.target} committed · {pct}% to drop
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={[styles.poolTrack, { backgroundColor: C.border }]}>
+                        <View style={[styles.poolFill, { width: `${Math.min(100, pct)}%` as any, backgroundColor: C.primary }]} />
+                      </View>
+                      <Text style={[styles.poolDesc, { color: C.textSecondary }]}>
+                        When {pool.target} fans each commit ${share}, the organiser releases a ticket lot — one random pool member wins a ticket at face value and everyone else gets a full refund.
+                      </Text>
+                      {inPool ? (
+                        <View style={[styles.poolJoined, { backgroundColor: '#22c55e15', borderColor: '#22c55e44' }]}>
+                          <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+                          <Text style={styles.poolJoinedText}>You're in the pool — good luck! 🎲</Text>
+                        </View>
+                      ) : (
+                        <Pressable
+                          style={[styles.poolJoinBtn, { backgroundColor: C.primary + '14', borderColor: C.primary + '44', borderWidth: 1 }]}
+                          onPress={handleJoinPool}
+                        >
+                          <Ionicons name="add-circle-outline" size={18} color={C.primary} />
+                          <Text style={[styles.poolJoinText, { color: C.primary }]}>Join pool — ${share} commitment</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                );
+              })()}
+            </>
+          ) : (
+            <>
+              {/* ── Ticket tier selector ──────────── */}
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: C.text }]}>Select Ticket Type</Text>
+                {event.tiers.map((t, i) => (
+                  <Pressable
+                    key={t.id}
+                    style={[
+                      styles.tierCard,
+                      { backgroundColor: C.card, borderColor: selectedTier === i ? C.primary : C.border },
+                      selectedTier === i && { borderWidth: 2 },
+                    ]}
+                    onPress={() => setSelectedTier(i)}
+                  >
+                    <View style={styles.tierHeader}>
+                      <View>
+                        <Text style={[styles.tierName, { color: C.text }]}>{t.name}</Text>
+                        <Text style={[styles.tierPrice, { color: C.primary }]}>${t.price}</Text>
+                      </View>
+                      <View style={[styles.tierRadio, { borderColor: selectedTier === i ? C.primary : C.border }]}>
+                        {selectedTier === i && <View style={[styles.tierRadioFill, { backgroundColor: C.primary }]} />}
+                      </View>
+                    </View>
+                    <View style={styles.tierPerks}>
+                      {t.perks.map(p => (
+                        <Text key={p} style={[styles.tierPerk, { color: C.textSecondary }]}>✓ {p}</Text>
+                      ))}
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* ── Quantity picker ───────────────── */}
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: C.text }]}>Quantity</Text>
+                <View style={styles.quantityRow}>
+                  <Pressable
+                    style={[styles.qtyBtn, { backgroundColor: C.card, borderColor: C.border }]}
+                    onPress={() => setQuantity(q => Math.max(1, q - 1))}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: C.text }]}>−</Text>
+                  </Pressable>
+                  <Text style={[styles.qtyValue, { color: C.text }]}>{quantity}</Text>
+                  <Pressable
+                    style={[styles.qtyBtn, { backgroundColor: C.card, borderColor: C.border }]}
+                    onPress={() => setQuantity(q => Math.min(10, q + 1))}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: C.text }]}>+</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* ── Trust signals ─────────────────── */}
+              <View style={[styles.trustRow, { backgroundColor: C.card, borderColor: C.border }]}>
+                {[
+                  { icon: 'lock-closed-outline', text: 'Secure via Paynow' },
+                  { icon: 'cube-outline', text: 'NFT on TON blockchain' },
+                  { icon: 'shield-checkmark-outline', text: 'Verified organizer' },
+                ].map((t, i) => (
+                  <View key={i} style={styles.trustItem}>
+                    <Ionicons name={t.icon as any} size={18} color={C.primary} />
+                    <Text style={[styles.trustText, { color: C.textMuted }]}>{t.text}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
         </View>
 
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Sticky buy button */}
+      {/* Sticky buy bar */}
       <View style={[styles.buyBar, { backgroundColor: C.card, borderTopColor: C.border }]}>
-        <View>
-          <Text style={[styles.buyTotal, { color: C.text }]}>${total}</Text>
-          <Text style={[styles.buyBreakdown, { color: C.textMuted }]}>{quantity}× {tier.name}</Text>
-        </View>
-        <Pressable
-          style={[styles.buyBtn, { backgroundColor: soldOut ? C.textMuted : C.primary }]}
-          onPress={handleBuy}
-          disabled={buying}
-        >
-          <Text style={styles.buyBtnText}>
-            {buying ? 'Processing…' : soldOut ? 'View Resale' : 'Get Ticket →'}
-          </Text>
-        </Pressable>
+        {soldOut ? (
+          <>
+            <View>
+              <Text style={[styles.buyTotal, { color: '#F87171', fontSize: 17, fontWeight: '800' }]}>Sold Out</Text>
+              <Text style={[styles.buyBreakdown, { color: C.textMuted }]}>Check marketplace for resale</Text>
+            </View>
+            <Pressable
+              style={[styles.buyBtn, { backgroundColor: C.primary }]}
+              onPress={() => router.push('/(tabs)/marketplace')}
+            >
+              <Text style={styles.buyBtnText}>Browse Resale →</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <View>
+              <Text style={[styles.buyTotal, { color: C.text }]}>${total}</Text>
+              <Text style={[styles.buyBreakdown, { color: C.textMuted }]}>{quantity}× {tier.name}</Text>
+            </View>
+            <Pressable
+              style={[styles.buyBtn, { backgroundColor: C.primary }]}
+              onPress={handleBuy}
+              disabled={buying}
+            >
+              <Text style={styles.buyBtnText}>{buying ? 'Processing…' : 'Get Ticket →'}</Text>
+            </Pressable>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -424,6 +555,30 @@ const styles = StyleSheet.create({
   buyBreakdown: { fontSize: 12, marginTop: 2 },
   buyBtn: { paddingHorizontal: 28, paddingVertical: 16, borderRadius: 16 },
   buyBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+
+  // Waitlist
+  waitlistCard: { borderRadius: 16, borderWidth: 1, padding: 16 },
+  waitlistTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  waitlistIconBox: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  waitlistTitle: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  waitlistMeta: { fontSize: 13, fontWeight: '600' },
+  waitlistDesc: { fontSize: 13, lineHeight: 19, marginBottom: 14 },
+  waitlistBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 14 },
+  waitlistBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+
+  // Pool
+  poolCard: { borderRadius: 16, borderWidth: 1, padding: 16 },
+  poolHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  poolIconBox: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  poolTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  poolMeta: { fontSize: 12 },
+  poolTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 14 },
+  poolFill: { height: '100%', borderRadius: 3 },
+  poolDesc: { fontSize: 13, lineHeight: 19, marginBottom: 14 },
+  poolJoined: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, padding: 12 },
+  poolJoinedText: { fontSize: 14, fontWeight: '700', color: '#22c55e' },
+  poolJoinBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 14 },
+  poolJoinText: { fontSize: 14, fontWeight: '700' },
 
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFoundText: { fontSize: 18 },

@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, MOCK_ORGANIZERS } from '@/context/AppContext';
+import { useApp, MOCK_ORGANIZERS, MOCK_SOCIAL_FRIENDS } from '@/context/AppContext';
 import AuthPrompt from '@/components/AuthPrompt';
 
 // ── Shared bottom-sheet wrapper ───────────────────────────────────────────────
@@ -49,7 +49,7 @@ const bs = StyleSheet.create({
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { user: authUser, signOut, isAuthenticated } = useAuth();
-  const { tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial, getOrganizerEvents } = useApp();
+  const { events, tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial, getOrganizerEvents } = useApp();
   const router = useRouter();
 
   // Profile edit
@@ -291,74 +291,54 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Connected Socials */}
-        <View style={[styles.socialCard, { backgroundColor: C.card, borderColor: C.border }]}>
-          <View style={styles.socialCardHeader}>
-            <Text style={[styles.socialCardTitle, { color: C.text }]}>Connected Socials</Text>
-            <Text style={[styles.socialCardSubtitle, { color: C.textMuted }]}>See mutual followers on event cards</Text>
+        {/* Party Animal */}
+        <View style={styles.partySection}>
+          <View style={styles.partyHeader}>
+            <Text style={[styles.partyTitle, { color: C.text }]}>Party Animal 🎉</Text>
+            <Text style={[styles.partySub, { color: C.textMuted }]}>Your circle, their plans</Text>
           </View>
-          {([
-            { platform: 'instagram', icon: '📸', label: 'Instagram', color: '#E1306C' },
-            { platform: 'twitter', icon: '𝕏', label: 'X (Twitter)', color: '#1DA1F2' },
-          ] as const).map((s, i) => (
-            <View key={s.platform} style={[styles.socialRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
-              <View style={[styles.socialIconBox, { backgroundColor: s.color + '18' }]}>
-                <Text style={styles.socialIconText}>{s.icon}</Text>
+          {/* Friend bubbles */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
+            {MOCK_SOCIAL_FRIENDS.map(friend => (
+              <View key={friend.id} style={styles.storyItem}>
+                <View style={[styles.storyRing, { borderColor: friend.color }]}>
+                  <View style={[styles.storyAvatar, { backgroundColor: friend.color + '25' }]}>
+                    <Text style={[styles.storyInitials, { color: friend.color }]}>{friend.initials}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.storyName, { color: C.textSecondary }]} numberOfLines={1}>{friend.name.split(' ')[0]}</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.socialLabel, { color: C.text }]}>{s.label}</Text>
-                <Text style={[styles.socialHandleText, { color: connectedSocials[s.platform] ? C.primary : C.textMuted }]}>
-                  {connectedSocials[s.platform] ?? 'Not connected'}
-                </Text>
-              </View>
-              {connectedSocials[s.platform] ? (
-                <Pressable onPress={() => disconnectSocial(s.platform)} style={styles.socialDisconnect}>
-                  <Text style={styles.socialDisconnectText}>Disconnect</Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => { setSocialModal(s.platform); setSocialHandle(''); }}
-                  style={[styles.socialConnect, { backgroundColor: s.color + '18', borderColor: s.color + '44' }]}
-                >
-                  <Text style={[styles.socialConnectText, { color: s.color }]}>Connect</Text>
-                </Pressable>
-              )}
-            </View>
-          ))}
-        </View>
-
-        {/* Spending summary */}
-        {totalSpent > 0 && (
-          <View style={[styles.spendCard, { backgroundColor: C.card, borderColor: C.border }]}>
-            <View style={styles.spendRow}>
-              <View style={[styles.spendIcon, { backgroundColor: C.primary + '20' }]}>
-                <Ionicons name="trending-up-outline" size={18} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.spendLabel, { color: C.textMuted }]}>Total spent on events</Text>
-                <Text style={[styles.spendValue, { color: C.text }]}>${totalSpent.toLocaleString()}</Text>
-              </View>
-              <Pressable onPress={() => router.push('/(tabs)/vault')}>
-                <Text style={[styles.spendLink, { color: C.primary }]}>View Vault →</Text>
+            ))}
+          </ScrollView>
+          {/* Activity feed */}
+          <View style={styles.partyFeed}>
+            {MOCK_SOCIAL_FRIENDS.flatMap(friend =>
+              friend.attendingEventIds.map(eid => {
+                const ev = events.find(e => e.id === eid);
+                return ev ? { friend, ev } : null;
+              })
+            ).filter(Boolean).slice(0, 6).map((item, i) => (
+              <Pressable
+                key={i}
+                style={[styles.partyRow, { backgroundColor: C.card, borderColor: C.border }]}
+                onPress={() => router.push(`/event/${item!.ev.id}` as never)}
+              >
+                <View style={[styles.partyDot, { backgroundColor: item!.friend.color }]}>
+                  <Text style={styles.partyDotText}>{item!.friend.initials}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.partyFriendName, { color: C.text }]}>{item!.friend.name}</Text>
+                  <Text style={[styles.partyEventName, { color: C.textSecondary }]} numberOfLines={1}>→ {item!.ev.title}</Text>
+                </View>
+                <View style={[styles.partyDateChip, { backgroundColor: C.surface, borderColor: C.border }]}>
+                  <Text style={[styles.partyDateText, { color: C.textMuted }]}>
+                    {item!.ev.date.split(',')[0].split(' ').slice(0, 2).join(' ')}
+                  </Text>
+                </View>
               </Pressable>
-            </View>
+            ))}
           </View>
-        )}
-
-        {/* Upgrade banner */}
-        <Pressable
-          style={[styles.upgradeBanner, { backgroundColor: C.primary + '12', borderColor: C.primary + '35' }]}
-          onPress={() => Alert.alert('Become an Organizer', 'Create and manage your own events on Tick3t.\n\nOrganizer upgrade coming soon!')}
-        >
-          <View style={[styles.upgradeIcon, { backgroundColor: C.primary + '20' }]}>
-            <Ionicons name="megaphone-outline" size={20} color={C.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.upgradeTitle, { color: C.primary }]}>Become an Organizer</Text>
-            <Text style={[styles.upgradeDesc, { color: C.textSecondary }]}>Create events, sell tickets, track analytics</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={C.primary} />
-        </Pressable>
+        </View>
 
         {/* Social connect modal */}
         {socialModal !== null && (
@@ -512,6 +492,41 @@ export default function ProfileScreen() {
                     </Pressable>
                   </View>
                 </View>
+                {/* Connected Socials */}
+                <View style={[styles.socialCard, { backgroundColor: C.surface, borderColor: C.border, marginHorizontal: 0, marginTop: 14 }]}>
+                  <View style={styles.socialCardHeader}>
+                    <Text style={[styles.socialCardTitle, { color: C.text }]}>Connected Socials</Text>
+                    <Text style={[styles.socialCardSubtitle, { color: C.textMuted }]}>See mutual followers on event cards</Text>
+                  </View>
+                  {([
+                    { platform: 'instagram', icon: '📸', label: 'Instagram', color: '#E1306C' },
+                    { platform: 'twitter', icon: '𝕏', label: 'X (Twitter)', color: '#1DA1F2' },
+                  ] as const).map((s, i) => (
+                    <View key={s.platform} style={[styles.socialRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                      <View style={[styles.socialIconBox, { backgroundColor: s.color + '18' }]}>
+                        <Text style={styles.socialIconText}>{s.icon}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.socialLabel, { color: C.text }]}>{s.label}</Text>
+                        <Text style={[styles.socialHandleText, { color: connectedSocials[s.platform] ? C.primary : C.textMuted }]}>
+                          {connectedSocials[s.platform] ?? 'Not connected'}
+                        </Text>
+                      </View>
+                      {connectedSocials[s.platform] ? (
+                        <Pressable onPress={() => disconnectSocial(s.platform)} style={styles.socialDisconnect}>
+                          <Text style={styles.socialDisconnectText}>Disconnect</Text>
+                        </Pressable>
+                      ) : (
+                        <Pressable
+                          onPress={() => { setSocialModal(s.platform); setSocialHandle(''); setSettingsModal(false); }}
+                          style={[styles.socialConnect, { backgroundColor: s.color + '18', borderColor: s.color + '44' }]}
+                        >
+                          <Text style={[styles.socialConnectText, { color: s.color }]}>Connect</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  ))}
+                </View>
                 {/* Menu items */}
                 <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.border, marginHorizontal: 0, marginTop: 14 }]}>
                   {menuItems.map((item, i) => (
@@ -531,6 +546,20 @@ export default function ProfileScreen() {
                     </Pressable>
                   ))}
                 </View>
+                {/* Become Organizer */}
+                <Pressable
+                  style={[styles.upgradeBanner, { backgroundColor: C.primary + '12', borderColor: C.primary + '35', marginTop: 14 }]}
+                  onPress={() => { setSettingsModal(false); Alert.alert('Become an Organizer', 'Create and manage your own events on Tick3t.\n\nOrganizer upgrade coming soon!'); }}
+                >
+                  <View style={[styles.upgradeIcon, { backgroundColor: C.primary + '20' }]}>
+                    <Ionicons name="megaphone-outline" size={20} color={C.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.upgradeTitle, { color: C.primary }]}>Become an Organizer</Text>
+                    <Text style={[styles.upgradeDesc, { color: C.textSecondary }]}>Create events, sell tickets, track analytics</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={C.primary} />
+                </Pressable>
                 {/* Sign out */}
                 <Pressable
                   style={[styles.signOutBtn, { backgroundColor: '#EF444415', borderColor: '#EF444430', marginHorizontal: 0, marginTop: 14 }]}
@@ -768,6 +797,20 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
   statValue: { fontSize: 20, fontWeight: '800' },
   statLabel: { fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
+
+  // Party Animal
+  partySection: { marginHorizontal: 20, marginTop: 14 },
+  partyHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 14 },
+  partyTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  partySub: { fontSize: 12 },
+  partyFeed: { gap: 8, marginTop: 14 },
+  partyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, borderWidth: 1 },
+  partyDot: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  partyDotText: { fontSize: 13, fontWeight: '900', color: '#fff' },
+  partyFriendName: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  partyEventName: { fontSize: 12 },
+  partyDateChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  partyDateText: { fontSize: 10, fontWeight: '600' },
 
   socialCard: { marginHorizontal: 20, marginTop: 14, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   socialCardHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },

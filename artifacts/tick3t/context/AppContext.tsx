@@ -8,6 +8,28 @@ const MARKETPLACE_KEY = 'tick3t.marketplace.listings';
 const LISTED_IDS_KEY = 'tick3t.marketplace.listed-ids';
 const FOLLOWING_KEY = 'tick3t.following.organizers';
 const SOCIALS_KEY = 'tick3t.connected.socials';
+const WAITLIST_KEY = 'tick3t.waitlist.events';
+const WATCHLIST_KEY = 'tick3t.watchlist.events';
+const POOL_KEY = 'tick3t.pool.events';
+
+// Waitlist seed counts (pre-populated so social proof is immediate)
+const MOCK_WAITLIST_COUNTS: Record<string, number> = { '2': 287 };
+
+// Pool seed data per event: how many people have committed before the user joins
+const MOCK_POOL_DATA: Record<string, { target: number; raised: number; contributors: number }> = {
+  '2': { target: 50, raised: 32, contributors: 32 },
+};
+
+export interface SocialFriend {
+  id: string; name: string; handle: string; initials: string; color: string; attendingEventIds: string[];
+}
+export const MOCK_SOCIAL_FRIENDS: SocialFriend[] = [
+  { id: 'f1', name: 'Alex Chen',   handle: '@alex_raves',   initials: 'AC', color: '#6366F1', attendingEventIds: ['1', '4'] },
+  { id: 'f2', name: 'Priya R.',    handle: '@priya_vibes',  initials: 'PR', color: '#EC4899', attendingEventIds: ['2', '5'] },
+  { id: 'f3', name: 'Marcus L.',   handle: '@marcusparty',  initials: 'ML', color: '#06B6D4', attendingEventIds: ['3', '4'] },
+  { id: 'f4', name: 'Sasha M.',    handle: '@sasham',       initials: 'SM', color: '#22C55E', attendingEventIds: ['1', '6'] },
+  { id: 'f5', name: 'Jordan K.',   handle: '@jk_out',       initials: 'JK', color: '#F59E0B', attendingEventIds: ['5'] },
+];
 
 // ── Organizer metadata ────────────────────────────────────────────────────────
 
@@ -281,8 +303,16 @@ interface AppContextValue {
   listedTicketIds: Set<string>;
   followedOrganizers: Set<string>;
   connectedSocials: Record<string, string>;
+  joinedWaitlist: Set<string>;
+  watchlist: Set<string>;
+  joinedPools: Set<string>;
   connectSocial: (platform: string, handle: string) => void;
   disconnectSocial: (platform: string) => void;
+  toggleWaitlist: (eventId: string) => void;
+  toggleWatchlist: (eventId: string) => void;
+  joinPool: (eventId: string) => void;
+  getWaitlistCount: (eventId: string) => number;
+  getPoolData: (eventId: string) => { target: number; raised: number; contributors: number };
   purchaseTicket: (event: Event, tierId: string, quantity: number) => Promise<PurchasedTicket>;
   purchaseMarketplaceTicket: (listing: MarketplaceListing) => Promise<PurchasedTicket>;
   getTicketById: (id: string) => PurchasedTicket | undefined;
@@ -305,6 +335,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [listedTicketIds, setListedTicketIds] = useState<Set<string>>(new Set());
   const [followedOrganizers, setFollowedOrganizers] = useState<Set<string>>(new Set());
   const [connectedSocials, setConnectedSocials] = useState<Record<string, string>>({});
+  const [joinedWaitlist, setJoinedWaitlist] = useState<Set<string>>(new Set());
+  const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
+  const [joinedPools, setJoinedPools] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<User>({
     id: '1',
     name: 'Guest User',
@@ -337,9 +370,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     });
     AsyncStorage.getItem(SOCIALS_KEY).then(raw => {
-      if (raw) {
-        try { setConnectedSocials(JSON.parse(raw)); } catch { /* ignore */ }
-      }
+      if (raw) { try { setConnectedSocials(JSON.parse(raw)); } catch { /* ignore */ } }
+    });
+    AsyncStorage.getItem(WAITLIST_KEY).then(raw => {
+      if (raw) { try { setJoinedWaitlist(new Set(JSON.parse(raw))); } catch { /* ignore */ } }
+    });
+    AsyncStorage.getItem(WATCHLIST_KEY).then(raw => {
+      if (raw) { try { setWatchlist(new Set(JSON.parse(raw))); } catch { /* ignore */ } }
+    });
+    AsyncStorage.getItem(POOL_KEY).then(raw => {
+      if (raw) { try { setJoinedPools(new Set(JSON.parse(raw))); } catch { /* ignore */ } }
     });
   }, []);
 
@@ -483,6 +523,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const toggleWaitlist = useCallback((eventId: string) => {
+    setJoinedWaitlist(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId); else next.add(eventId);
+      AsyncStorage.setItem(WAITLIST_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  const toggleWatchlist = useCallback((eventId: string) => {
+    setWatchlist(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId); else next.add(eventId);
+      AsyncStorage.setItem(WATCHLIST_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  const joinPool = useCallback((eventId: string) => {
+    setJoinedPools(prev => {
+      const next = new Set(prev);
+      next.add(eventId);
+      AsyncStorage.setItem(POOL_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  const getWaitlistCount = useCallback((eventId: string) => {
+    return (MOCK_WAITLIST_COUNTS[eventId] ?? 0) + (joinedWaitlist.has(eventId) ? 1 : 0);
+  }, [joinedWaitlist]);
+
+  const getPoolData = useCallback((eventId: string) => {
+    const base = MOCK_POOL_DATA[eventId] ?? { target: 50, raised: 0, contributors: 0 };
+    const extra = joinedPools.has(eventId) ? 1 : 0;
+    return { ...base, raised: base.raised + extra, contributors: base.contributors + extra };
+  }, [joinedPools]);
+
   const toggleFollowOrganizer = useCallback((organizerName: string) => {
     setFollowedOrganizers(prev => {
       const next = new Set(prev);
@@ -504,7 +581,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       events: MOCK_EVENTS, tickets, user, marketplace, listedTicketIds, followedOrganizers,
-      connectedSocials, connectSocial, disconnectSocial,
+      connectedSocials, joinedWaitlist, watchlist, joinedPools,
+      connectSocial, disconnectSocial, toggleWaitlist, toggleWatchlist, joinPool,
+      getWaitlistCount, getPoolData,
       purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, getOrganizerEvents,
       updateUser, addMarketplaceListing, cancelListing, transferTicket, toggleFollowOrganizer,
     }}>

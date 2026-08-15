@@ -24,7 +24,8 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
   const trending = event.attendees > 1000;
 
   // Following & social proof
-  const { followedOrganizers, connectedSocials } = useApp();
+  const { followedOrganizers, connectedSocials, getWaitlistCount } = useApp();
+  const waitlistCount = getWaitlistCount(event.id);
   const org = MOCK_ORGANIZERS[event.organizer];
   const isFollowing = followedOrganizers.has(event.organizer);
   let mutualNames: string[] = [];
@@ -111,6 +112,9 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
               <View style={styles.soldOutBadge}>
                 <Text style={styles.soldOutText}>Sold Out</Text>
               </View>
+              {waitlistCount > 0 && (
+                <Text style={styles.soldOutWaiting}>{waitlistCount.toLocaleString()} waiting</Text>
+              )}
             </View>
           )}
         </View>
@@ -166,7 +170,9 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
           )}
           {soldOut && (
             <View style={[styles.smallBadge, { backgroundColor: '#EF444422', borderWidth: 1, borderColor: '#EF444455' }]}>
-              <Text style={[styles.smallBadgeText, { color: '#F87171' }]}>Sold Out</Text>
+              <Text style={[styles.smallBadgeText, { color: '#F87171' }]}>
+                {waitlistCount > 0 ? `${waitlistCount.toLocaleString()} waiting` : 'Sold Out'}
+              </Text>
             </View>
           )}
           {almostGone && (
@@ -225,8 +231,9 @@ const styles = StyleSheet.create({
   gridBadgeRow: { position: 'absolute', top: 6, left: 6, flexDirection: 'row', gap: 4 },
   smallBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
   smallBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 0.2 },
-  soldOutOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.52)', alignItems: 'center', justifyContent: 'center' },
+  soldOutOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.52)', alignItems: 'center', justifyContent: 'center', gap: 6 },
   soldOutBadge: { backgroundColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
+  soldOutWaiting: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' },
   soldOutText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   gridBody: { padding: 10 },
   gridTitle: { fontSize: 13, fontWeight: '700', marginBottom: 5, lineHeight: 17 },
