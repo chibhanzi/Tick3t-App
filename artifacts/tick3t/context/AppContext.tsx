@@ -6,6 +6,69 @@ const TICKETS_KEY = 'tick3t.vault.tickets';
 const USER_KEY = 'tick3t.mock-auth.user';
 const MARKETPLACE_KEY = 'tick3t.marketplace.listings';
 const LISTED_IDS_KEY = 'tick3t.marketplace.listed-ids';
+const FOLLOWING_KEY = 'tick3t.following.organizers';
+
+// ── Organizer metadata ────────────────────────────────────────────────────────
+
+export interface OrganizerMeta {
+  id: string;
+  name: string;
+  bio: string;
+  color: string;
+  eventCount: number;
+  followerCount: number;
+}
+
+export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
+  'Bass Events Miami': {
+    id: 'bass-events-miami',
+    name: 'Bass Events Miami',
+    bio: "Miami's premier electronic music collective, running sell-out raves and festivals since 2018.",
+    color: '#6366F1',
+    eventCount: 12,
+    followerCount: 4800,
+  },
+  'Neon Collective': {
+    id: 'neon-collective',
+    name: 'Neon Collective',
+    bio: 'Independent art & culture producers bringing immersive gallery experiences to unconventional spaces.',
+    color: '#EC4899',
+    eventCount: 7,
+    followerCount: 2100,
+  },
+  'TechSV Events': {
+    id: 'techsv-events',
+    name: 'TechSV Events',
+    bio: "Silicon Valley's go-to event organizer for founders, engineers, and investors.",
+    color: '#06B6D4',
+    eventCount: 19,
+    followerCount: 6300,
+  },
+  'GameLA Productions': {
+    id: 'gamela-productions',
+    name: 'GameLA Productions',
+    bio: "LA's biggest esports and gaming tournament organizer.",
+    color: '#22C55E',
+    eventCount: 8,
+    followerCount: 3700,
+  },
+  'Pacific Social': {
+    id: 'pacific-social',
+    name: 'Pacific Social',
+    bio: 'Curating the best beach parties and sunset sessions up and down the California coast.',
+    color: '#F59E0B',
+    eventCount: 15,
+    followerCount: 5200,
+  },
+  'NYFW Collective': {
+    id: 'nyfw-collective',
+    name: 'NYFW Collective',
+    bio: "New York's fashion week experts — runway, retail, and after-party all in one package.",
+    color: '#A78BFA',
+    eventCount: 6,
+    followerCount: 8100,
+  },
+};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -190,14 +253,17 @@ interface AppContextValue {
   user: User | null;
   marketplace: MarketplaceListing[];
   listedTicketIds: Set<string>;
+  followedOrganizers: Set<string>;
   purchaseTicket: (event: Event, tierId: string, quantity: number) => Promise<PurchasedTicket>;
   purchaseMarketplaceTicket: (listing: MarketplaceListing) => Promise<PurchasedTicket>;
   getTicketById: (id: string) => PurchasedTicket | undefined;
   getEventById: (id: string) => Event | undefined;
+  getOrganizerEvents: (organizerName: string) => Event[];
   updateUser: (u: Partial<User>) => void;
   addMarketplaceListing: (ticket: PurchasedTicket, resalePrice: number) => void;
   cancelListing: (listingId: string) => void;
   transferTicket: (ticketId: string) => Promise<void>;
+  toggleFollowOrganizer: (organizerName: string) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -208,6 +274,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tickets, setTickets] = useState<PurchasedTicket[]>([]);
   const [marketplace, setMarketplace] = useState<MarketplaceListing[]>(INITIAL_MARKETPLACE);
   const [listedTicketIds, setListedTicketIds] = useState<Set<string>>(new Set());
+  const [followedOrganizers, setFollowedOrganizers] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<User>({
     id: '1',
     name: 'Guest User',
@@ -232,6 +299,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(LISTED_IDS_KEY).then(raw => {
       if (raw) {
         try { setListedTicketIds(new Set(JSON.parse(raw))); } catch { /* ignore */ }
+      }
+    });
+    AsyncStorage.getItem(FOLLOWING_KEY).then(raw => {
+      if (raw) {
+        try { setFollowedOrganizers(new Set(JSON.parse(raw))); } catch { /* ignore */ }
       }
     });
   }, []);
@@ -356,6 +428,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getTicketById = useCallback((id: string) => tickets.find(t => t.id === id), [tickets]);
   const getEventById = useCallback((id: string) => MOCK_EVENTS.find(e => e.id === id), []);
+  const getOrganizerEvents = useCallback((organizerName: string) =>
+    MOCK_EVENTS.filter(e => e.organizer === organizerName), []);
+
+  const toggleFollowOrganizer = useCallback((organizerName: string) => {
+    setFollowedOrganizers(prev => {
+      const next = new Set(prev);
+      if (next.has(organizerName)) next.delete(organizerName);
+      else next.add(organizerName);
+      AsyncStorage.setItem(FOLLOWING_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
 
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => {
@@ -367,9 +451,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      events: MOCK_EVENTS, tickets, user, marketplace, listedTicketIds,
-      purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById,
-      updateUser, addMarketplaceListing, cancelListing, transferTicket,
+      events: MOCK_EVENTS, tickets, user, marketplace, listedTicketIds, followedOrganizers,
+      purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, getOrganizerEvents,
+      updateUser, addMarketplaceListing, cancelListing, transferTicket, toggleFollowOrganizer,
     }}>
       {children}
     </AppContext.Provider>
