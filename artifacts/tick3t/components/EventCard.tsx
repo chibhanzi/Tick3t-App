@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useApp, MOCK_ORGANIZERS } from '@/context/AppContext';
 import { Event } from '@/types';
@@ -115,8 +116,14 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
         </View>
         <View style={styles.gridBody}>
           <Text style={[styles.gridTitle, { color: C.text }]} numberOfLines={2}>{event.title}</Text>
-          <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>📅 {event.date}</Text>
-          <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>📍 {event.location}</Text>
+          <View style={styles.gridMetaRow}>
+            <Ionicons name="calendar-outline" size={9} color={C.textSecondary} />
+            <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>{event.date}</Text>
+          </View>
+          <View style={styles.gridMetaRow}>
+            <Ionicons name="location-outline" size={9} color={C.textSecondary} />
+            <Text style={[styles.gridMeta, { color: C.textSecondary }]} numberOfLines={1}>{event.location}</Text>
+          </View>
           <View style={styles.gridFooter}>
             <Text style={[styles.gridAttendees, { color: C.textMuted }]}>
               {event.attendees >= 1000 ? `${(event.attendees / 1000).toFixed(1)}k` : event.attendees} going
@@ -169,8 +176,14 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
           )}
         </View>
         <Text style={[styles.listTitle, { color: C.text }]} numberOfLines={2}>{event.title}</Text>
-        <Text style={[styles.listMeta, { color: C.textSecondary }]}>📅 {event.date} · {event.time}</Text>
-        <Text style={[styles.listMeta, { color: C.textSecondary }]}>📍 {event.location}</Text>
+        <View style={styles.listMetaRow}>
+          <Ionicons name="calendar-outline" size={11} color={C.textSecondary} />
+          <Text style={[styles.listMeta, { color: C.textSecondary }]}>{event.date} · {event.time}</Text>
+        </View>
+        <View style={styles.listMetaRow}>
+          <Ionicons name="location-outline" size={11} color={C.textSecondary} />
+          <Text style={[styles.listMeta, { color: C.textSecondary }]}>{event.location}</Text>
+        </View>
         <View style={styles.listFooter}>
           <Text style={[styles.listAttendees, { color: C.textMuted }]}>{event.attendees.toLocaleString()} going</Text>
           <Text style={[styles.listPrice, { color: soldOut ? C.textMuted : C.primary }]}>
@@ -233,7 +246,9 @@ const styles = StyleSheet.create({
   listTitle: { fontSize: 16, fontWeight: '700', marginBottom: 6, letterSpacing: -0.2 },
   listMeta: { fontSize: 12, marginBottom: 3 },
   listFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  listMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
   listAttendees: { fontSize: 12 },
   listPrice: { fontSize: 15, fontWeight: '800' },
   listMutual: { fontSize: 11, marginTop: 8, fontStyle: 'italic' },
+  gridMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
 });

@@ -11,17 +11,36 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: C.primary,
         tabBarInactiveTintColor: C.tabIconDefault,
         tabBarStyle: {
+          position: 'absolute',
+          bottom: Platform.OS === 'ios' ? 28 : 16,
+          left: 16,
+          right: 16,
+          height: 62,
+          borderRadius: 18,
           backgroundColor: C.card,
-          borderTopColor: C.border,
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 85 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-          paddingTop: 8,
+          borderWidth: 1,
+          borderColor: C.border,
+          elevation: 16,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.20,
+          shadowRadius: 16,
+          paddingBottom: 6,
+          paddingTop: 6,
         },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', letterSpacing: 0.3 },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+          letterSpacing: 0.2,
+          marginTop: 1,
+        },
+        tabBarItemStyle: {
+          borderRadius: 14,
+        },
       }}
     >
       <Tabs.Screen
@@ -34,7 +53,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="marketplace"
         options={{
-          title: 'Marketplace',
+          title: 'Market',
           tabBarIcon: ({ color, size }) => <Ionicons name="storefront-outline" size={size} color={color} />,
         }}
       />

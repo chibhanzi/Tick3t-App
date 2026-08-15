@@ -49,7 +49,7 @@ const bs = StyleSheet.create({
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { user: authUser, signOut, isAuthenticated } = useAuth();
-  const { tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial } = useApp();
+  const { tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial, getOrganizerEvents } = useApp();
   const router = useRouter();
 
   // Profile edit
@@ -66,6 +66,8 @@ export default function ProfileScreen() {
   const [helpModal, setHelpModal] = useState(false);
   const [socialModal, setSocialModal] = useState<string | null>(null);
   const [socialHandle, setSocialHandle] = useState('');
+  const [activeOrgSheet, setActiveOrgSheet] = useState<string | null>(null);
+  const [settingsModal, setSettingsModal] = useState(false);
 
   // Paynow form
   const [paynowPhone, setPaynowPhone] = useState('');
@@ -189,14 +191,22 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.screenTitle, { color: C.text }]}>Profile</Text>
-          <Pressable
-            style={[styles.editBtn, { borderColor: C.border }]}
-            onPress={() => editing ? handleSave() : setEditing(true)}
-          >
-            <Text style={[styles.editBtnText, { color: editing ? C.primary : C.textSecondary }]}>
-              {editing ? 'Save' : 'Edit'}
-            </Text>
-          </Pressable>
+          <View style={styles.headerRight}>
+            <Pressable
+              style={[styles.cogBtn, { borderColor: C.border, backgroundColor: C.card }]}
+              onPress={() => setSettingsModal(true)}
+            >
+              <Ionicons name="settings-outline" size={18} color={C.textSecondary} />
+            </Pressable>
+            <Pressable
+              style={[styles.editBtn, { borderColor: C.border }]}
+              onPress={() => editing ? handleSave() : setEditing(true)}
+            >
+              <Text style={[styles.editBtnText, { color: editing ? C.primary : C.textSecondary }]}>
+                {editing ? 'Save' : 'Edit'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Avatar + info */}
@@ -266,14 +276,7 @@ export default function ProfileScreen() {
                   <Pressable
                     key={name}
                     style={styles.storyItem}
-                    onPress={() => Alert.alert(
-                      name,
-                      `${org?.bio ?? 'Organizer'}\n\n${org ? `${(org.followerCount / 1000).toFixed(1)}k followers · ${org.eventCount} events` : ''}`,
-                      [
-                        { text: 'Unfollow', style: 'destructive', onPress: () => toggleFollowOrganizer(name) },
-                        { text: 'Close', style: 'cancel' },
-                      ]
-                    )}
+                    onPress={() => setActiveOrgSheet(name)}
                   >
                     <View style={[styles.storyRing, { borderColor: color }]}>
                       <View style={[styles.storyAvatar, { backgroundColor: color + '25' }]}>
@@ -357,42 +360,6 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={18} color={C.primary} />
         </Pressable>
 
-        {/* Theme toggle */}
-        <View style={[styles.themeCard, { backgroundColor: C.card, borderColor: C.border }]}>
-          <View style={styles.themeRow}>
-            <View style={[styles.themeIconBox, { backgroundColor: isDark ? '#1a2a4a' : '#f0f9ff' }]}>
-              <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={isDark ? '#60A5FA' : '#F59E0B'} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={[styles.themeLabel, { color: C.text }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
-              <Text style={[styles.themeDesc, { color: C.textMuted }]}>{isDark ? 'Switch to light theme' : 'Switch to dark theme'}</Text>
-            </View>
-            <Pressable onPress={toggleTheme} style={[styles.togglePill, { backgroundColor: isDark ? C.primary : C.border }]}>
-              <View style={[styles.toggleKnob, { transform: [{ translateX: isDark ? 20 : 0 }] }]} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Menu */}
-        <View style={[styles.menuCard, { backgroundColor: C.card, borderColor: C.border }]}>
-          {menuItems.map((item, i) => (
-            <Pressable
-              key={i}
-              style={[styles.menuRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}
-              onPress={item.onPress}
-            >
-              <View style={[styles.menuIconBox, { backgroundColor: C.surface }]}>
-                <Ionicons name={item.icon} size={18} color={C.textSecondary} />
-              </View>
-              <Text style={[styles.menuLabel, { color: C.text }]}>{item.label}</Text>
-              <View style={styles.menuRight}>
-                {item.value ? <Text style={[styles.menuValue, { color: C.textMuted }]} numberOfLines={1}>{item.value}</Text> : null}
-                <Ionicons name="chevron-forward" size={16} color={item.chevronColor ?? C.textMuted} />
-              </View>
-            </Pressable>
-          ))}
-        </View>
-
         {/* Social connect modal */}
         {socialModal !== null && (
           <BottomSheet
@@ -432,22 +399,157 @@ export default function ProfileScreen() {
           </BottomSheet>
         )}
 
-        {/* Sign Out */}
-        <Pressable
-          style={[styles.signOutBtn, { backgroundColor: '#EF444415', borderColor: '#EF444430' }]}
-          onPress={handleSignOut}
-        >
-          <Ionicons name="log-out-outline" size={18} color="#F87171" />
-          <Text style={[styles.signOutText, { color: '#F87171' }]}>Sign Out</Text>
-        </Pressable>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: C.textMuted }]}>Tick3t · Own Your Access</Text>
-          <Text style={[styles.footerText, { color: C.textMuted }]}>v1.0.0 · NFT powered by TON · Payments by Paynow</Text>
-        </View>
-        <View style={{ height: 30 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── Organizer detail sheet ───────────────────────────────── */}
+      {activeOrgSheet !== null && (() => {
+        const org = MOCK_ORGANIZERS[activeOrgSheet];
+        const color = org?.color ?? C.primary;
+        const initials = activeOrgSheet.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+        const isFollowing = followedOrganizers.has(activeOrgSheet);
+        const orgEvents = getOrganizerEvents(activeOrgSheet).slice(0, 4);
+        return (
+          <Modal visible transparent animationType="slide" onRequestClose={() => setActiveOrgSheet(null)}>
+            <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setActiveOrgSheet(null)} />
+              <View style={[bs.sheet, { backgroundColor: C.card, borderColor: C.border, maxHeight: '82%' }]}>
+                <View style={[bs.handle, { backgroundColor: C.border }]} />
+                {/* Organizer header */}
+                <View style={[styles.orgSheetHeader, { borderColor: color + '33', backgroundColor: color + '0C' }]}>
+                  <View style={[styles.orgSheetAvatar, { backgroundColor: color + '22', borderColor: color }]}>
+                    <Text style={[styles.orgSheetInitials, { color }]}>{initials}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.orgSheetName, { color: C.text }]} numberOfLines={1}>{activeOrgSheet}</Text>
+                      <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+                    </View>
+                    <Text style={[styles.orgSheetStats, { color: C.textMuted }]}>
+                      {org ? `${(org.followerCount / 1000).toFixed(1)}k followers · ${org.eventCount} events` : 'Organizer'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={[styles.orgSheetFollowBtn, isFollowing
+                      ? { backgroundColor: '#22c55e15', borderColor: '#22c55e55' }
+                      : { backgroundColor: color + '18', borderColor: color + '66' }]}
+                    onPress={() => toggleFollowOrganizer(activeOrgSheet)}
+                  >
+                    <Ionicons name={isFollowing ? 'checkmark' : 'add'} size={14} color={isFollowing ? '#22c55e' : color} />
+                    <Text style={[styles.orgSheetFollowText, { color: isFollowing ? '#22c55e' : color }]}>
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </Text>
+                  </Pressable>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
+                  {org?.bio && (
+                    <Text style={[styles.orgSheetBio, { color: C.textSecondary }]}>{org.bio}</Text>
+                  )}
+                  {orgEvents.length > 0 && (
+                    <View style={styles.orgSheetEventsSection}>
+                      <Text style={[styles.orgSheetSectionTitle, { color: C.textMuted }]}>Upcoming Events</Text>
+                      {orgEvents.map(ev => (
+                        <Pressable
+                          key={ev.id}
+                          style={[styles.orgSheetEventRow, { backgroundColor: C.surface, borderColor: C.border }]}
+                          onPress={() => { setActiveOrgSheet(null); router.push(`/event/${ev.id}` as never); }}
+                        >
+                          <View style={[styles.orgSheetEventDot, { backgroundColor: color }]} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.orgSheetEventName, { color: C.text }]} numberOfLines={1}>{ev.name}</Text>
+                            <Text style={[styles.orgSheetEventMeta, { color: C.textMuted }]} numberOfLines={1}>
+                              {ev.date} · {ev.location.split(',')[0]}
+                            </Text>
+                          </View>
+                          <Text style={[styles.orgSheetEventPrice, { color: C.primary }]}>${ev.tiers[0]?.price ?? '?'}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  {isFollowing && (
+                    <Pressable
+                      style={[styles.orgSheetUnfollow, { borderColor: '#EF444430' }]}
+                      onPress={() => { toggleFollowOrganizer(activeOrgSheet); setActiveOrgSheet(null); }}
+                    >
+                      <Ionicons name="person-remove-outline" size={16} color="#F87171" />
+                      <Text style={styles.orgSheetUnfollowText}>Unfollow Organizer</Text>
+                    </Pressable>
+                  )}
+                  <View style={{ height: 20 }} />
+                </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+        );
+      })()}
+
+      {/* ── Settings sheet ────────────────────────────────────────── */}
+      {settingsModal && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setSettingsModal(false)}>
+          <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setSettingsModal(false)} />
+            <View style={[bs.sheet, { backgroundColor: C.card, borderColor: C.border, maxHeight: '90%' }]}>
+              <View style={[bs.handle, { backgroundColor: C.border }]} />
+              <View style={bs.sheetHeader}>
+                <Text style={[bs.sheetTitle, { color: C.text }]}>Settings</Text>
+                <Pressable onPress={() => setSettingsModal(false)} style={[bs.closeBtn, { backgroundColor: C.surface }]}>
+                  <Ionicons name="close" size={18} color={C.textSecondary} />
+                </Pressable>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Theme */}
+                <View style={[styles.themeCard, { backgroundColor: C.surface, borderColor: C.border, marginHorizontal: 0, marginBottom: 0 }]}>
+                  <View style={styles.themeRow}>
+                    <View style={[styles.themeIconBox, { backgroundColor: isDark ? '#1a2a4a' : '#f0f9ff' }]}>
+                      <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={isDark ? '#60A5FA' : '#F59E0B'} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 14 }}>
+                      <Text style={[styles.themeLabel, { color: C.text }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
+                      <Text style={[styles.themeDesc, { color: C.textMuted }]}>{isDark ? 'Switch to light theme' : 'Switch to dark theme'}</Text>
+                    </View>
+                    <Pressable onPress={toggleTheme} style={[styles.togglePill, { backgroundColor: isDark ? C.primary : C.border }]}>
+                      <View style={[styles.toggleKnob, { transform: [{ translateX: isDark ? 20 : 0 }] }]} />
+                    </Pressable>
+                  </View>
+                </View>
+                {/* Menu items */}
+                <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.border, marginHorizontal: 0, marginTop: 14 }]}>
+                  {menuItems.map((item, i) => (
+                    <Pressable
+                      key={i}
+                      style={[styles.menuRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}
+                      onPress={() => { setSettingsModal(false); item.onPress(); }}
+                    >
+                      <View style={[styles.menuIconBox, { backgroundColor: C.card }]}>
+                        <Ionicons name={item.icon} size={18} color={C.textSecondary} />
+                      </View>
+                      <Text style={[styles.menuLabel, { color: C.text }]}>{item.label}</Text>
+                      <View style={styles.menuRight}>
+                        {item.value ? <Text style={[styles.menuValue, { color: C.textMuted }]} numberOfLines={1}>{item.value}</Text> : null}
+                        <Ionicons name="chevron-forward" size={16} color={item.chevronColor ?? C.textMuted} />
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+                {/* Sign out */}
+                <Pressable
+                  style={[styles.signOutBtn, { backgroundColor: '#EF444415', borderColor: '#EF444430', marginHorizontal: 0, marginTop: 14 }]}
+                  onPress={() => { setSettingsModal(false); handleSignOut(); }}
+                >
+                  <Ionicons name="log-out-outline" size={18} color="#F87171" />
+                  <Text style={[styles.signOutText, { color: '#F87171' }]}>Sign Out</Text>
+                </Pressable>
+                {/* Footer */}
+                <View style={[styles.footer, { paddingTop: 16 }]}>
+                  <Text style={[styles.footerText, { color: C.textMuted }]}>Tick3t · Own Your Access</Text>
+                  <Text style={[styles.footerText, { color: C.textMuted }]}>v1.0.0 · NFT powered by TON · Payments by Paynow</Text>
+                </View>
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      )}
 
       {/* ── Paynow Modal ─────────────────────────────────────────── */}
       <BottomSheet visible={paynowModal} onClose={() => setPaynowModal(false)} title="Link Paynow">
@@ -625,8 +727,29 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
   screenTitle: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cogBtn: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   editBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   editBtnText: { fontSize: 14, fontWeight: '600' },
+
+  // Organizer sheet
+  orgSheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, borderWidth: 1 },
+  orgSheetAvatar: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  orgSheetInitials: { fontSize: 18, fontWeight: '900' },
+  orgSheetName: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  orgSheetStats: { fontSize: 12, marginTop: 2 },
+  orgSheetFollowBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  orgSheetFollowText: { fontSize: 13, fontWeight: '700' },
+  orgSheetBio: { fontSize: 14, lineHeight: 21, marginTop: 14, marginBottom: 20 },
+  orgSheetEventsSection: { marginBottom: 18 },
+  orgSheetSectionTitle: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  orgSheetEventRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  orgSheetEventDot: { width: 8, height: 32, borderRadius: 4 },
+  orgSheetEventName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  orgSheetEventMeta: { fontSize: 11 },
+  orgSheetEventPrice: { fontSize: 14, fontWeight: '800' },
+  orgSheetUnfollow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: 16, paddingVertical: 13, marginBottom: 4 },
+  orgSheetUnfollowText: { fontSize: 14, fontWeight: '700', color: '#F87171' },
 
   avatarSection: { alignItems: 'center', paddingVertical: 20 },
   avatarRing: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, padding: 4, marginBottom: 14 },

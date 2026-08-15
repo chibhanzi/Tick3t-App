@@ -203,14 +203,14 @@ export default function EventDetailScreen() {
 
         {/* Unified info card */}
         <View style={[styles.infoUnified, { backgroundColor: C.card, borderColor: C.border }]}>
-          {[
-            { icon: '📅', value: event.date.replace(/,?\s*\d{4}/, ''), sub: event.time },
-            { icon: '📍', value: event.location.split(',')[0], sub: 'Location' },
-            { icon: '👥', value: event.attendees >= 1000 ? `${(event.attendees / 1000).toFixed(1)}k` : String(event.attendees), sub: 'Going' },
-            { icon: '⏱', value: '6h', sub: 'Duration' },
-          ].map((item, i) => (
+          {([
+            { icon: 'calendar-outline', value: event.date.replace(/,?\s*\d{4}/, ''), sub: event.time },
+            { icon: 'location-outline', value: event.location.split(',')[0], sub: 'Location' },
+            { icon: 'people-outline', value: event.attendees >= 1000 ? `${(event.attendees / 1000).toFixed(1)}k` : String(event.attendees), sub: 'Going' },
+            { icon: 'time-outline', value: '6h', sub: 'Duration' },
+          ] as const).map((item, i) => (
             <View key={i} style={[styles.infoCol, i < 3 && { borderRightWidth: 1, borderRightColor: C.border }]}>
-              <Text style={styles.infoColIcon}>{item.icon}</Text>
+              <Ionicons name={item.icon} size={17} color={C.primary} />
               <Text style={[styles.infoColValue, { color: C.text }]} numberOfLines={1}>{item.value}</Text>
               <Text style={[styles.infoColSub, { color: C.textMuted }]} numberOfLines={1}>{item.sub}</Text>
             </View>
@@ -251,7 +251,8 @@ export default function EventDetailScreen() {
             <View style={styles.amenityGrid}>
               {event.amenities.map(a => (
                 <View key={a} style={[styles.amenityItem, { backgroundColor: C.card, borderColor: C.border }]}>
-                  <Text style={[styles.amenityText, { color: C.textSecondary }]}>✓ {a}</Text>
+                  <Ionicons name="checkmark-circle-outline" size={13} color="#22c55e" />
+                  <Text style={[styles.amenityText, { color: C.textSecondary }]}>{a}</Text>
                 </View>
               ))}
             </View>
@@ -363,9 +364,8 @@ const styles = StyleSheet.create({
   heroOrganizer: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
 
   infoUnified: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  infoCol: { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4 },
-  infoColIcon: { fontSize: 16, marginBottom: 5 },
-  infoColValue: { fontSize: 12, fontWeight: '700', marginBottom: 2, textAlign: 'center' },
+  infoCol: { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, gap: 4 },
+  infoColValue: { fontSize: 12, fontWeight: '700', marginBottom: 1, textAlign: 'center' },
   infoColSub: { fontSize: 10, textAlign: 'center' },
 
   availSection: { paddingHorizontal: 20, marginBottom: 8 },
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 12 },
 
   amenityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  amenityItem: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1 },
+  amenityItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, borderWidth: 1 },
   amenityText: { fontSize: 12 },
 
   tierCard: { borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1 },
