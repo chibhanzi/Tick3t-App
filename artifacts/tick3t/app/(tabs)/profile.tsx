@@ -90,7 +90,7 @@ function todayDate(): Date {
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { user: authUser, signOut, isAuthenticated } = useAuth();
-  const { events, tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial, getOrganizerEvents } = useApp();
+  const { events, tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial, getOrganizerEvents, primarySocial, setPrimarySocial } = useApp();
   const router = useRouter();
 
   // Profile edit
@@ -252,54 +252,76 @@ export default function ProfileScreen() {
         </View>
 
         {/* Avatar + info */}
-        <View style={styles.avatarSection}>
-          <View style={[styles.avatarRing, { borderColor: C.primary + '50' }]}>
-            <View style={[styles.avatar, { backgroundColor: C.primary + '22' }]}>
-              <Text style={[styles.initials, { color: C.primary }]}>{initials}</Text>
-            </View>
-          </View>
-          {editing ? (
-            <View style={styles.editFields}>
-              <TextInput style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]} value={name} onChangeText={setName} placeholder="Display name" placeholderTextColor={C.textMuted} />
-              <TextInput style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={C.textMuted} keyboardType="email-address" />
-            </View>
-          ) : (
-            <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: C.text }]}>{displayName}</Text>
-              <Text style={[styles.userEmail, { color: C.textSecondary }]}>{displayEmail}</Text>
-              <View style={styles.roleBadgeRow}>
-                <View style={[styles.roleBadge, { backgroundColor: C.primary + '22', borderColor: C.primary + '44' }]}>
-                  <Ionicons name="ticket-outline" size={11} color={C.primary} />
-                  <Text style={[styles.roleBadgeText, { color: C.primary }]}>Attendee</Text>
-                </View>
-                <View style={[styles.roleBadge, { backgroundColor: '#6366F122', borderColor: '#6366F144' }]}>
-                  <Ionicons name="cube-outline" size={11} color="#818CF8" />
-                  <Text style={[styles.roleBadgeText, { color: '#818CF8' }]}>NFT Member</Text>
-                </View>
-              </View>
-            </View>
-          )}
-        </View>
+        {(() => {
+          const BRAND: Record<string, { color: string; bg: string; label: string; ionicon?: string }> = {
+            instagram: { color: '#E1306C', bg: '#E1306C22', label: 'Instagram', ionicon: 'logo-instagram' },
+            twitter:   { color: '#1A8CD8', bg: '#1A8CD822', label: 'X / Twitter' },
+          };
+          const active = primarySocial && connectedSocials[primarySocial] ? primarySocial : null;
+          const brand = active ? BRAND[active] : null;
+          const ringColor  = brand ? brand.color : C.primary;
+          const avatarBg   = brand ? brand.bg    : C.primary + '22';
+          const accentText = brand ? brand.color  : C.primary;
+          const socialHandle = active ? '@' + connectedSocials[active] : null;
 
-        {/* Stats */}
-        <View style={[styles.statsGrid, { backgroundColor: C.card, borderColor: C.border }]}>
-          {[
-            { label: 'Upcoming', value: upcoming, icon: 'ticket-outline' as const },
-            { label: 'Attended', value: past, icon: 'checkmark-circle-outline' as const },
-            { label: 'NFT Keys', value: tickets.filter(t => t.isNFT).length, icon: 'cube-outline' as const },
-            { label: 'Listed', value: activeListings, icon: 'storefront-outline' as const },
-          ].map((s, i) => (
-            <Pressable
-              key={i}
-              style={[styles.statItem, i < 3 && { borderRightWidth: 1, borderRightColor: C.border }]}
-              onPress={i === 0 || i === 1 ? () => router.push('/(tabs)/vault') : i === 2 ? () => router.push('/(tabs)/vault') : undefined}
-            >
-              <Ionicons name={s.icon} size={18} color={C.primary} />
-              <Text style={[styles.statValue, { color: C.text }]}>{s.value}</Text>
-              <Text style={[styles.statLabel, { color: C.textMuted }]}>{s.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+          return (
+            <View style={styles.avatarSection}>
+              <View style={{ position: 'relative' }}>
+                <View style={[styles.avatarRing, { borderColor: ringColor + '70' }]}>
+                  <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
+                    {brand?.ionicon
+                      ? <Ionicons name={brand.ionicon as any} size={34} color={brand.color} />
+                      : brand
+                        ? <Text style={{ fontSize: 28, fontWeight: '900', color: brand.color }}>𝕏</Text>
+                        : <Text style={[styles.initials, { color: C.primary }]}>{initials}</Text>
+                    }
+                  </View>
+                </View>
+                {brand && (
+                  <View style={[styles.socialBadge, { backgroundColor: brand.color, borderColor: C.card }]}>
+                    {brand.ionicon
+                      ? <Ionicons name={brand.ionicon as any} size={11} color="#fff" />
+                      : <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>𝕏</Text>
+                    }
+                  </View>
+                )}
+              </View>
+              {editing ? (
+                <View style={styles.editFields}>
+                  <TextInput style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]} value={name} onChangeText={setName} placeholder="Display name" placeholderTextColor={C.textMuted} />
+                  <TextInput style={[styles.editInput, { color: C.text, borderColor: C.border, backgroundColor: C.card }]} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={C.textMuted} keyboardType="email-address" />
+                </View>
+              ) : (
+                <View style={styles.userInfo}>
+                  <Text style={[styles.userName, { color: C.text }]}>{displayName}</Text>
+                  {socialHandle
+                    ? <Text style={[styles.userEmail, { color: accentText, fontWeight: '700' }]}>{socialHandle}</Text>
+                    : <Text style={[styles.userEmail, { color: C.textSecondary }]}>{displayEmail}</Text>
+                  }
+                  <View style={styles.roleBadgeRow}>
+                    <View style={[styles.roleBadge, { backgroundColor: C.primary + '22', borderColor: C.primary + '44' }]}>
+                      <Ionicons name="ticket-outline" size={11} color={C.primary} />
+                      <Text style={[styles.roleBadgeText, { color: C.primary }]}>Attendee</Text>
+                    </View>
+                    {brand && (
+                      <View style={[styles.roleBadge, { backgroundColor: brand.color + '22', borderColor: brand.color + '44' }]}>
+                        {brand.ionicon
+                          ? <Ionicons name={brand.ionicon as any} size={11} color={brand.color} />
+                          : <Text style={{ fontSize: 11, color: brand.color, fontWeight: '900' }}>𝕏</Text>
+                        }
+                        <Text style={[styles.roleBadgeText, { color: brand.color }]}>{brand.label}</Text>
+                      </View>
+                    )}
+                    <View style={[styles.roleBadge, { backgroundColor: '#6366F122', borderColor: '#6366F144' }]}>
+                      <Ionicons name="cube-outline" size={11} color="#818CF8" />
+                      <Text style={[styles.roleBadgeText, { color: '#818CF8' }]}>NFT Member</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+          );
+        })()}
 
         {/* Following — Instagram/X stories row */}
         {followedOrganizers.size > 0 && (
@@ -405,6 +427,7 @@ export default function ProfileScreen() {
 
                       {isExpanded && (
                         <View style={styles.partyExpanded}>
+                          {/* Events */}
                           {friendEvents.map(ev => {
                             const evDate = parseDateStr(ev.date).getTime();
                             const isEvLive = evDate === today;
@@ -431,6 +454,30 @@ export default function ProfileScreen() {
                               </Pressable>
                             );
                           })}
+                          {/* Socials */}
+                          {friend.socials.length > 0 && (
+                            <View style={[styles.partySocialsRow, { borderColor: C.border }]}>
+                              <Ionicons name="share-social-outline" size={13} color={C.textMuted} />
+                              <Text style={[styles.partySocialsLabel, { color: C.textMuted }]}>Find on</Text>
+                              {friend.socials.map(s => {
+                                const igColor = '#E1306C';
+                                const twColor = '#1A8CD8';
+                                const col = s.platform === 'instagram' ? igColor : twColor;
+                                return (
+                                  <View
+                                    key={s.platform}
+                                    style={[styles.partySocialChip, { backgroundColor: col + '18', borderColor: col + '44' }]}
+                                  >
+                                    {s.platform === 'instagram'
+                                      ? <Ionicons name="logo-instagram" size={11} color={col} />
+                                      : <Text style={{ fontSize: 10, color: col, fontWeight: '900', lineHeight: 13 }}>𝕏</Text>
+                                    }
+                                    <Text style={[styles.partySocialHandle, { color: col }]}>@{s.handle}</Text>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
                         </View>
                       )}
                     </View>
@@ -597,36 +644,61 @@ export default function ProfileScreen() {
                 <View style={[styles.socialCard, { backgroundColor: C.surface, borderColor: C.border, marginHorizontal: 0, marginTop: 14 }]}>
                   <View style={styles.socialCardHeader}>
                     <Text style={[styles.socialCardTitle, { color: C.text }]}>Connected Socials</Text>
-                    <Text style={[styles.socialCardSubtitle, { color: C.textMuted }]}>See mutual followers on event cards</Text>
+                    <Text style={[styles.socialCardSubtitle, { color: C.textMuted }]}>Primary platform sets your profile look</Text>
                   </View>
                   {([
                     { platform: 'instagram', icon: '📸', label: 'Instagram', color: '#E1306C' },
                     { platform: 'twitter', icon: '𝕏', label: 'X (Twitter)', color: '#1DA1F2' },
-                  ] as const).map((s, i) => (
-                    <View key={s.platform} style={[styles.socialRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
-                      <View style={[styles.socialIconBox, { backgroundColor: s.color + '18' }]}>
-                        <Text style={styles.socialIconText}>{s.icon}</Text>
+                  ] as const).map((s, i) => {
+                    const connected = !!connectedSocials[s.platform];
+                    const isPrimary = primarySocial === s.platform;
+                    return (
+                      <View key={s.platform} style={[styles.socialRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                        <View style={[styles.socialIconBox, { backgroundColor: s.color + '18' }]}>
+                          <Text style={styles.socialIconText}>{s.icon}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.socialLabel, { color: C.text }]}>{s.label}</Text>
+                            {isPrimary && (
+                              <View style={[styles.primaryChip, { backgroundColor: s.color + '22', borderColor: s.color + '55' }]}>
+                                <Text style={[styles.primaryChipText, { color: s.color }]}>Primary</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={[styles.socialHandleText, { color: connected ? s.color : C.textMuted }]}>
+                            {connected ? '@' + connectedSocials[s.platform] : 'Not connected'}
+                          </Text>
+                        </View>
+                        <View style={{ gap: 6 }}>
+                          {connected && (
+                            <Pressable
+                              onPress={() => setPrimarySocial(isPrimary ? null : s.platform)}
+                              style={[styles.primaryBtn, isPrimary
+                                ? { backgroundColor: s.color + '22', borderColor: s.color + '55' }
+                                : { backgroundColor: C.card, borderColor: C.border }]}
+                            >
+                              <Text style={[styles.primaryBtnText, { color: isPrimary ? s.color : C.textMuted }]}>
+                                {isPrimary ? '★ Primary' : '☆ Set Primary'}
+                              </Text>
+                            </Pressable>
+                          )}
+                          {connected ? (
+                            <Pressable onPress={() => disconnectSocial(s.platform)} style={styles.socialDisconnect}>
+                              <Text style={styles.socialDisconnectText}>Disconnect</Text>
+                            </Pressable>
+                          ) : (
+                            <Pressable
+                              onPress={() => { setSocialModal(s.platform); setSocialHandle(''); setSettingsModal(false); }}
+                              style={[styles.socialConnect, { backgroundColor: s.color + '18', borderColor: s.color + '44' }]}
+                            >
+                              <Text style={[styles.socialConnectText, { color: s.color }]}>Connect</Text>
+                            </Pressable>
+                          )}
+                        </View>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.socialLabel, { color: C.text }]}>{s.label}</Text>
-                        <Text style={[styles.socialHandleText, { color: connectedSocials[s.platform] ? C.primary : C.textMuted }]}>
-                          {connectedSocials[s.platform] ?? 'Not connected'}
-                        </Text>
-                      </View>
-                      {connectedSocials[s.platform] ? (
-                        <Pressable onPress={() => disconnectSocial(s.platform)} style={styles.socialDisconnect}>
-                          <Text style={styles.socialDisconnectText}>Disconnect</Text>
-                        </Pressable>
-                      ) : (
-                        <Pressable
-                          onPress={() => { setSocialModal(s.platform); setSocialHandle(''); setSettingsModal(false); }}
-                          style={[styles.socialConnect, { backgroundColor: s.color + '18', borderColor: s.color + '44' }]}
-                        >
-                          <Text style={[styles.socialConnectText, { color: s.color }]}>Connect</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
                 {/* Menu items */}
                 <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.border, marginHorizontal: 0, marginTop: 14 }]}>
@@ -917,6 +989,21 @@ const styles = StyleSheet.create({
   partyEventTitle: { flex: 1, fontSize: 13, fontWeight: '600' },
   partyDateChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
   partyDateText: { fontSize: 10, fontWeight: '600' },
+
+  // Avatar social badge
+  socialBadge: { position: 'absolute', bottom: 2, right: 2, width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+
+  // Primary social chips & buttons (Settings sheet)
+  primaryChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+  primaryChipText: { fontSize: 10, fontWeight: '800' },
+  primaryBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+  primaryBtnText: { fontSize: 11, fontWeight: '700' },
+
+  // Party Animal — socials row in expanded view
+  partySocialsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingTop: 8, marginTop: 4, borderTopWidth: StyleSheet.hairlineWidth },
+  partySocialsLabel: { fontSize: 11 },
+  partySocialChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  partySocialHandle: { fontSize: 11, fontWeight: '700' },
 
   socialCard: { marginHorizontal: 20, marginTop: 14, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   socialCardHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },

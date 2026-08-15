@@ -11,6 +11,7 @@ const SOCIALS_KEY = 'tick3t.connected.socials';
 const WAITLIST_KEY = 'tick3t.waitlist.events';
 const WATCHLIST_KEY = 'tick3t.watchlist.events';
 const POOL_KEY = 'tick3t.pool.events';
+const PRIMARY_SOCIAL_KEY = 'tick3t.primary.social';
 
 // Waitlist seed counts (pre-populated so social proof is immediate)
 const MOCK_WAITLIST_COUNTS: Record<string, number> = { '2': 287 };
@@ -22,13 +23,14 @@ const MOCK_POOL_DATA: Record<string, { target: number; raised: number; contribut
 
 export interface SocialFriend {
   id: string; name: string; handle: string; initials: string; color: string; attendingEventIds: string[];
+  socials: { platform: 'instagram' | 'twitter'; handle: string }[];
 }
 export const MOCK_SOCIAL_FRIENDS: SocialFriend[] = [
-  { id: 'f1', name: 'Alex Chen',   handle: '@alex_raves',   initials: 'AC', color: '#6366F1', attendingEventIds: ['1', '4'] },
-  { id: 'f2', name: 'Priya R.',    handle: '@priya_vibes',  initials: 'PR', color: '#EC4899', attendingEventIds: ['2', '5'] },
-  { id: 'f3', name: 'Marcus L.',   handle: '@marcusparty',  initials: 'ML', color: '#06B6D4', attendingEventIds: ['3', '4'] },
-  { id: 'f4', name: 'Sasha M.',    handle: '@sasham',       initials: 'SM', color: '#22C55E', attendingEventIds: ['1', '6'] },
-  { id: 'f5', name: 'Jordan K.',   handle: '@jk_out',       initials: 'JK', color: '#F59E0B', attendingEventIds: ['5'] },
+  { id: 'f1', name: 'Alex Chen',  handle: '@alex_raves',  initials: 'AC', color: '#6366F1', attendingEventIds: ['1', '4'], socials: [{ platform: 'instagram', handle: 'alex.raves' }, { platform: 'twitter', handle: 'alex_raves' }] },
+  { id: 'f2', name: 'Priya R.',   handle: '@priya_vibes', initials: 'PR', color: '#EC4899', attendingEventIds: ['2', '5'], socials: [{ platform: 'instagram', handle: 'priya_vibes' }] },
+  { id: 'f3', name: 'Marcus L.',  handle: '@marcusparty', initials: 'ML', color: '#06B6D4', attendingEventIds: ['3', '4'], socials: [{ platform: 'twitter', handle: 'marcusparty' }] },
+  { id: 'f4', name: 'Sasha M.',   handle: '@sasham',      initials: 'SM', color: '#22C55E', attendingEventIds: ['1', '6'], socials: [{ platform: 'instagram', handle: 'sasha.m_official' }, { platform: 'twitter', handle: 'sasham' }] },
+  { id: 'f5', name: 'Jordan K.',  handle: '@jk_out',      initials: 'JK', color: '#F59E0B', attendingEventIds: ['5'],      socials: [{ platform: 'instagram', handle: 'jordan.k.out' }] },
 ];
 
 // ── Organizer metadata ────────────────────────────────────────────────────────
@@ -303,6 +305,8 @@ interface AppContextValue {
   listedTicketIds: Set<string>;
   followedOrganizers: Set<string>;
   connectedSocials: Record<string, string>;
+  primarySocial: string | null;
+  setPrimarySocial: (platform: string | null) => void;
   joinedWaitlist: Set<string>;
   watchlist: Set<string>;
   joinedPools: Set<string>;
@@ -335,6 +339,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [listedTicketIds, setListedTicketIds] = useState<Set<string>>(new Set());
   const [followedOrganizers, setFollowedOrganizers] = useState<Set<string>>(new Set());
   const [connectedSocials, setConnectedSocials] = useState<Record<string, string>>({});
+  const [primarySocial, setPrimarySocialState] = useState<string | null>(null);
   const [joinedWaitlist, setJoinedWaitlist] = useState<Set<string>>(new Set());
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [joinedPools, setJoinedPools] = useState<Set<string>>(new Set());
@@ -380,6 +385,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     AsyncStorage.getItem(POOL_KEY).then(raw => {
       if (raw) { try { setJoinedPools(new Set(JSON.parse(raw))); } catch { /* ignore */ } }
+    });
+    AsyncStorage.getItem(PRIMARY_SOCIAL_KEY).then(raw => {
+      if (raw) { try { setPrimarySocialState(JSON.parse(raw)); } catch { /* ignore */ } }
     });
   }, []);
 
@@ -521,6 +529,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.setItem(SOCIALS_KEY, JSON.stringify(next));
       return next;
     });
+    setPrimarySocialState(prev => {
+      if (prev === platform) { AsyncStorage.setItem(PRIMARY_SOCIAL_KEY, JSON.stringify(null)); return null; }
+      return prev;
+    });
+  }, []);
+
+  const setPrimarySocial = useCallback((platform: string | null) => {
+    setPrimarySocialState(platform);
+    AsyncStorage.setItem(PRIMARY_SOCIAL_KEY, JSON.stringify(platform));
   }, []);
 
   const toggleWaitlist = useCallback((eventId: string) => {
@@ -581,7 +598,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       events: MOCK_EVENTS, tickets, user, marketplace, listedTicketIds, followedOrganizers,
-      connectedSocials, joinedWaitlist, watchlist, joinedPools,
+      connectedSocials, primarySocial, setPrimarySocial, joinedWaitlist, watchlist, joinedPools,
       connectSocial, disconnectSocial, toggleWaitlist, toggleWatchlist, joinPool,
       getWaitlistCount, getPoolData,
       purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, getOrganizerEvents,
