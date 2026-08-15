@@ -113,18 +113,85 @@ export default function EventDetailScreen() {
           </View>
         </View>
 
-        {/* Info cards */}
-        <View style={styles.infoGrid}>
+        {/* Organizer card */}
+        {(() => {
+          const org = MOCK_ORGANIZERS[event.organizer];
+          const isFollowing = followedOrganizers.has(event.organizer);
+          const initials = event.organizer.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+          const color = org?.color ?? C.primary;
+
+          const handleFollowPress = () => {
+            if (!isAuthenticated) {
+              Alert.alert(
+                'Sign in to follow',
+                'Create a free account to follow organizers and get notified of new events.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
+                ]
+              );
+              return;
+            }
+            toggleFollowOrganizer(event.organizer);
+          };
+
+          return (
+            <View style={[styles.orgCard, { backgroundColor: C.card, borderColor: C.border }]}>
+              <View style={styles.orgHeader}>
+                <View style={[styles.orgAvatar, { backgroundColor: color + '22', borderColor: color + '55' }]}>
+                  <Text style={[styles.orgInitials, { color }]}>{initials}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.orgNameRow}>
+                    <Text style={[styles.orgName, { color: C.text }]} numberOfLines={1}>
+                      {event.organizer}
+                    </Text>
+                    {event.isVerifiedOrganizer && (
+                      <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+                    )}
+                  </View>
+                  <Text style={[styles.orgStats, { color: C.textMuted }]}>
+                    {org ? `${(org.followerCount / 1000).toFixed(1)}k followers · ${org.eventCount} events` : 'Organizer'}
+                  </Text>
+                </View>
+                <Pressable
+                  style={[
+                    styles.followBtn,
+                    isFollowing
+                      ? { backgroundColor: '#22c55e15', borderColor: '#22c55e55' }
+                      : { backgroundColor: color + '18', borderColor: color + '55' },
+                  ]}
+                  onPress={handleFollowPress}
+                >
+                  <Ionicons
+                    name={isFollowing ? 'checkmark' : 'add'}
+                    size={14}
+                    color={isFollowing ? '#22c55e' : color}
+                  />
+                  <Text style={[styles.followBtnText, { color: isFollowing ? '#22c55e' : color }]}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Text>
+                </Pressable>
+              </View>
+              {org?.bio && (
+                <Text style={[styles.orgBio, { color: C.textSecondary }]}>{org.bio}</Text>
+              )}
+            </View>
+          );
+        })()}
+
+        {/* Unified info card */}
+        <View style={[styles.infoUnified, { backgroundColor: C.card, borderColor: C.border }]}>
           {[
-            { icon: '📅', label: event.date, sub: event.time },
-            { icon: '📍', label: event.location, sub: event.fullAddress },
-            { icon: '👥', label: `${event.attendees.toLocaleString()} going`, sub: 'Join them' },
-            { icon: '⏱', label: '6 hours', sub: 'Duration' },
+            { icon: '📅', value: event.date.replace(/,?\s*\d{4}/, ''), sub: event.time },
+            { icon: '📍', value: event.location.split(',')[0], sub: 'Location' },
+            { icon: '👥', value: event.attendees >= 1000 ? `${(event.attendees / 1000).toFixed(1)}k` : String(event.attendees), sub: 'Going' },
+            { icon: '⏱', value: '6h', sub: 'Duration' },
           ].map((item, i) => (
-            <View key={i} style={[styles.infoCard, { backgroundColor: C.card, borderColor: C.border }]}>
-              <Text style={styles.infoIcon}>{item.icon}</Text>
-              <Text style={[styles.infoLabel, { color: C.text }]} numberOfLines={1}>{item.label}</Text>
-              <Text style={[styles.infoSub, { color: C.textMuted }]} numberOfLines={1}>{item.sub}</Text>
+            <View key={i} style={[styles.infoCol, i < 3 && { borderRightWidth: 1, borderRightColor: C.border }]}>
+              <Text style={styles.infoColIcon}>{item.icon}</Text>
+              <Text style={[styles.infoColValue, { color: C.text }]} numberOfLines={1}>{item.value}</Text>
+              <Text style={[styles.infoColSub, { color: C.textMuted }]} numberOfLines={1}>{item.sub}</Text>
             </View>
           ))}
         </View>
@@ -156,75 +223,6 @@ export default function EventDetailScreen() {
               </View>
             ))}
           </View>
-
-          {/* Organizer card */}
-          {(() => {
-            const org = MOCK_ORGANIZERS[event.organizer];
-            const isFollowing = followedOrganizers.has(event.organizer);
-            const initials = event.organizer.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-            const color = org?.color ?? C.primary;
-
-            const handleFollowPress = () => {
-              if (!isAuthenticated) {
-                Alert.alert(
-                  'Sign in to follow',
-                  'Create a free account to follow organizers and get notified of new events.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
-                  ]
-                );
-                return;
-              }
-              toggleFollowOrganizer(event.organizer);
-            };
-
-            return (
-              <View style={[styles.orgCard, { backgroundColor: C.card, borderColor: C.border }]}>
-                {/* Avatar + name row */}
-                <View style={styles.orgHeader}>
-                  <View style={[styles.orgAvatar, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                    <Text style={[styles.orgInitials, { color }]}>{initials}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.orgNameRow}>
-                      <Text style={[styles.orgName, { color: C.text }]} numberOfLines={1}>
-                        {event.organizer}
-                      </Text>
-                      {event.isVerifiedOrganizer && (
-                        <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-                      )}
-                    </View>
-                    <Text style={[styles.orgStats, { color: C.textMuted }]}>
-                      {org ? `${(org.followerCount / 1000).toFixed(1)}k followers · ${org.eventCount} events` : 'Organizer'}
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={[
-                      styles.followBtn,
-                      isFollowing
-                        ? { backgroundColor: '#22c55e15', borderColor: '#22c55e55' }
-                        : { backgroundColor: color + '18', borderColor: color + '55' },
-                    ]}
-                    onPress={handleFollowPress}
-                  >
-                    <Ionicons
-                      name={isFollowing ? 'checkmark' : 'add'}
-                      size={14}
-                      color={isFollowing ? '#22c55e' : color}
-                    />
-                    <Text style={[styles.followBtnText, { color: isFollowing ? '#22c55e' : color }]}>
-                      {isFollowing ? 'Following' : 'Follow'}
-                    </Text>
-                  </Pressable>
-                </View>
-                {/* Bio */}
-                {org?.bio && (
-                  <Text style={[styles.orgBio, { color: C.textSecondary }]}>{org.bio}</Text>
-                )}
-              </View>
-            );
-          })()}
 
           {/* Amenities */}
           <View style={styles.section}>
@@ -343,11 +341,11 @@ const styles = StyleSheet.create({
   heroTitle: { color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
   heroOrganizer: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
 
-  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 10 },
-  infoCard: { width: '47%', borderRadius: 12, padding: 12, borderWidth: 1 },
-  infoIcon: { fontSize: 18, marginBottom: 4 },
-  infoLabel: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
-  infoSub: { fontSize: 11 },
+  infoUnified: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  infoCol: { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4 },
+  infoColIcon: { fontSize: 16, marginBottom: 5 },
+  infoColValue: { fontSize: 12, fontWeight: '700', marginBottom: 2, textAlign: 'center' },
+  infoColSub: { fontSize: 10, textAlign: 'center' },
 
   availSection: { paddingHorizontal: 20, marginBottom: 8 },
   availBar: { height: 4, borderRadius: 2, marginBottom: 6, overflow: 'hidden' },

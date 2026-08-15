@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
-import { useApp } from '@/context/AppContext';
+import { useApp, MOCK_ORGANIZERS } from '@/context/AppContext';
 import AuthPrompt from '@/components/AuthPrompt';
 
 // ── Shared bottom-sheet wrapper ───────────────────────────────────────────────
@@ -49,7 +49,7 @@ const bs = StyleSheet.create({
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { user: authUser, signOut, isAuthenticated } = useAuth();
-  const { tickets, updateUser, user, marketplace, listedTicketIds } = useApp();
+  const { tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer } = useApp();
   const router = useRouter();
 
   // Profile edit
@@ -246,6 +246,45 @@ export default function ProfileScreen() {
             </Pressable>
           ))}
         </View>
+
+        {/* Following — Instagram/X stories row */}
+        {followedOrganizers.size > 0 && (
+          <View style={styles.followingSection}>
+            <View style={styles.followingHeader}>
+              <Text style={[styles.followingTitle, { color: C.text }]}>Following</Text>
+              <Text style={[styles.followingCount, { color: C.textMuted }]}>{followedOrganizers.size} organizer{followedOrganizers.size !== 1 ? 's' : ''}</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
+              {[...followedOrganizers].map(name => {
+                const org = MOCK_ORGANIZERS[name];
+                const color = org?.color ?? C.primary;
+                const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+                const shortName = name.split(' ')[0];
+                return (
+                  <Pressable
+                    key={name}
+                    style={styles.storyItem}
+                    onPress={() => Alert.alert(
+                      name,
+                      `${org?.bio ?? 'Organizer'}\n\n${org ? `${(org.followerCount / 1000).toFixed(1)}k followers · ${org.eventCount} events` : ''}`,
+                      [
+                        { text: 'Unfollow', style: 'destructive', onPress: () => toggleFollowOrganizer(name) },
+                        { text: 'Close', style: 'cancel' },
+                      ]
+                    )}
+                  >
+                    <View style={[styles.storyRing, { borderColor: color }]}>
+                      <View style={[styles.storyAvatar, { backgroundColor: color + '25' }]}>
+                        <Text style={[styles.storyInitials, { color }]}>{initials}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.storyName, { color: C.textSecondary }]} numberOfLines={1}>{shortName}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Spending summary */}
         {totalSpent > 0 && (
@@ -529,6 +568,17 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
   statValue: { fontSize: 20, fontWeight: '800' },
   statLabel: { fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
+
+  followingSection: { marginHorizontal: 20, marginTop: 14 },
+  followingHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 14 },
+  followingTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  followingCount: { fontSize: 12 },
+  storiesRow: { gap: 18, paddingBottom: 4 },
+  storyItem: { alignItems: 'center', width: 62 },
+  storyRing: { width: 62, height: 62, borderRadius: 31, borderWidth: 2, padding: 3, marginBottom: 6 },
+  storyAvatar: { flex: 1, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  storyInitials: { fontSize: 18, fontWeight: '900' },
+  storyName: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
   spendCard: { marginHorizontal: 20, marginTop: 12, borderRadius: 14, borderWidth: 1, padding: 14 },
   spendRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

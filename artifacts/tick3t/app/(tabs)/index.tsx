@@ -8,8 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
-import { useAuth } from '@/context/AuthContext';
-import { useApp, MOCK_ORGANIZERS } from '@/context/AppContext';
+import { useApp } from '@/context/AppContext';
 import EventCard from '@/components/EventCard';
 import Logo from '@/components/Logo';
 import FilterModal, { FilterState } from '@/components/FilterModal';
@@ -57,8 +56,7 @@ const DEFAULT_FILTERS: FilterState = { location: '', categories: [], dateFilter:
 export default function DiscoverScreen() {
   const { colors: C, isDark } = useTheme();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
-  const { events, followedOrganizers, getOrganizerEvents } = useApp();
+  const { events } = useApp();
   const scrollRef = useRef<ScrollView>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,19 +82,6 @@ export default function DiscoverScreen() {
 
   const almostSoldOut = useMemo(() => events.filter(e => e.available > 0 && e.available < 100), [events]);
   const trending = useMemo(() => events.filter(e => e.available > 0 && e.attendees >= 800), [events]);
-
-  // Events from followed organizers (deduplicated, sorted by date)
-  const followingEvents = useMemo(() => {
-    if (!isAuthenticated || followedOrganizers.size === 0) return [];
-    const seen = new Set<string>();
-    const result: typeof events = [];
-    for (const orgName of followedOrganizers) {
-      for (const e of getOrganizerEvents(orgName)) {
-        if (!seen.has(e.id)) { seen.add(e.id); result.push(e); }
-      }
-    }
-    return result;
-  }, [isAuthenticated, followedOrganizers, getOrganizerEvents]);
 
   // Apply all filters
   const searchResults = useMemo(() => {
@@ -299,48 +284,6 @@ export default function DiscoverScreen() {
           </View>
         ) : (
           <>
-            {/* ── Following ── */}
-            {followingEvents.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={[styles.sectionTitle, { color: C.text }]}>Following</Text>
-                    <Text style={[styles.followingSubtitle, { color: C.textMuted }]}>
-                      New events from organizers you follow
-                    </Text>
-                  </View>
-                </View>
-                {/* Organizer pills */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.orgPillRow}>
-                  {[...followedOrganizers].map(name => {
-                    const org = MOCK_ORGANIZERS[name];
-                    const color = org?.color ?? C.primary;
-                    const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
-                    return (
-                      <View key={name} style={[styles.orgPill, { backgroundColor: color + '18', borderColor: color + '44' }]}>
-                        <View style={[styles.orgPillAvatar, { backgroundColor: color + '33' }]}>
-                          <Text style={[styles.orgPillInitials, { color }]}>{initials}</Text>
-                        </View>
-                        <Text style={[styles.orgPillName, { color: C.textSecondary }]} numberOfLines={1}>{name}</Text>
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-                {/* Horizontal event scroll */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.followingScroll}
-                >
-                  {followingEvents.map(e => (
-                    <View key={e.id} style={styles.followingCard}>
-                      <EventCard event={e} variant="featured" />
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
             {/* ── Browse by Category ── */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: C.text }]}>Browse by Category</Text>
@@ -643,12 +586,4 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   emptyText: { fontSize: 14 },
 
-  followingSubtitle: { fontSize: 12, marginTop: 2 },
-  orgPillRow: { gap: 8, paddingVertical: 12 },
-  orgPill: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
-  orgPillAvatar: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  orgPillInitials: { fontSize: 9, fontWeight: '900' },
-  orgPillName: { fontSize: 12, fontWeight: '600', maxWidth: 100 },
-  followingScroll: { gap: 12, paddingBottom: 4 },
-  followingCard: { width: 260 },
 });
