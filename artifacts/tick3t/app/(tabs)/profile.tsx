@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, TextInput, Alert,
-  Modal, KeyboardAvoidingView, Platform, Switch, Share,
+  Modal, KeyboardAvoidingView, Platform, Switch, Share, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +44,47 @@ const bs = StyleSheet.create({
   closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });
 
+// ── Buzzing avatar for ongoing events ────────────────────────────────────────
+
+function BuzzingRing({ color, initials }: { color: string; initials: string }) {
+  const [pulse] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.3, duration: 600, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 1, duration: 600, useNativeDriver: false }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse]);
+
+  return (
+    <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={{
+        position: 'absolute', width: 44, height: 44, borderRadius: 22,
+        borderWidth: 2.5, borderColor: color,
+        opacity: pulse.interpolate({ inputRange: [1, 1.3], outputRange: [0.85, 0] }),
+        transform: [{ scale: pulse.interpolate({ inputRange: [1, 1.3], outputRange: [1, 1.3] }) }],
+      }} />
+      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: color + '28',
+        alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: color }}>
+        <Text style={{ color, fontSize: 13, fontWeight: '900' }}>{initials}</Text>
+      </View>
+    </View>
+  );
+}
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
+
+function parseDateStr(s: string): Date {
+  const d = new Date(s); d.setHours(0, 0, 0, 0); return d;
+}
+function todayDate(): Date {
+  const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
@@ -68,6 +109,7 @@ export default function ProfileScreen() {
   const [socialHandle, setSocialHandle] = useState('');
   const [activeOrgSheet, setActiveOrgSheet] = useState<string | null>(null);
   const [settingsModal, setSettingsModal] = useState(false);
+  const [expandedFriend, setExpandedFriend] = useState<string | null>(null);
 
   // Paynow form
   const [paynowPhone, setPaynowPhone] = useState('');
@@ -291,54 +333,113 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Party Animal */}
-        <View style={styles.partySection}>
-          <View style={styles.partyHeader}>
-            <Text style={[styles.partyTitle, { color: C.text }]}>Party Animal 🎉</Text>
-            <Text style={[styles.partySub, { color: C.textMuted }]}>Your circle, their plans</Text>
-          </View>
-          {/* Friend bubbles */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
-            {MOCK_SOCIAL_FRIENDS.map(friend => (
-              <View key={friend.id} style={styles.storyItem}>
-                <View style={[styles.storyRing, { borderColor: friend.color }]}>
-                  <View style={[styles.storyAvatar, { backgroundColor: friend.color + '25' }]}>
-                    <Text style={[styles.storyInitials, { color: friend.color }]}>{friend.initials}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.storyName, { color: C.textSecondary }]} numberOfLines={1}>{friend.name.split(' ')[0]}</Text>
+        {/* Party Animals */}
+        {(() => {
+          const today = todayDate().getTime();
+
+          const friendsWithMeta = MOCK_SOCIAL_FRIENDS.map(friend => {
+            const friendEvents = friend.attendingEventIds
+              .map(eid => events.find(e => e.id === eid))
+              .filter(Boolean) as typeof events;
+            const dates = friendEvents.map(ev => parseDateStr(ev.date).getTime());
+            const isLive = dates.some(d => d === today);
+            const earliest = dates.length ? Math.min(...dates) : Infinity;
+            return { friend, friendEvents, isLive, earliest };
+          }).sort((a, b) => {
+            if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
+            return a.earliest - b.earliest;
+          });
+
+          return (
+            <View style={styles.partySection}>
+              <View style={styles.partyHeader}>
+                <Text style={[styles.partyTitle, { color: C.text }]}>Party Animals 🎉</Text>
+                <Text style={[styles.partySub, { color: C.textMuted }]}>Your circle, their plans</Text>
               </View>
-            ))}
-          </ScrollView>
-          {/* Activity feed */}
-          <View style={styles.partyFeed}>
-            {MOCK_SOCIAL_FRIENDS.flatMap(friend =>
-              friend.attendingEventIds.map(eid => {
-                const ev = events.find(e => e.id === eid);
-                return ev ? { friend, ev } : null;
-              })
-            ).filter(Boolean).slice(0, 6).map((item, i) => (
-              <Pressable
-                key={i}
-                style={[styles.partyRow, { backgroundColor: C.card, borderColor: C.border }]}
-                onPress={() => router.push(`/event/${item!.ev.id}` as never)}
-              >
-                <View style={[styles.partyDot, { backgroundColor: item!.friend.color }]}>
-                  <Text style={styles.partyDotText}>{item!.friend.initials}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.partyFriendName, { color: C.text }]}>{item!.friend.name}</Text>
-                  <Text style={[styles.partyEventName, { color: C.textSecondary }]} numberOfLines={1}>→ {item!.ev.title}</Text>
-                </View>
-                <View style={[styles.partyDateChip, { backgroundColor: C.surface, borderColor: C.border }]}>
-                  <Text style={[styles.partyDateText, { color: C.textMuted }]}>
-                    {item!.ev.date.split(',')[0].split(' ').slice(0, 2).join(' ')}
-                  </Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+              <View style={styles.partyFeed}>
+                {friendsWithMeta.map(({ friend, friendEvents, isLive }) => {
+                  const isExpanded = expandedFriend === friend.id;
+                  return (
+                    <View key={friend.id}>
+                      <Pressable
+                        style={[
+                          styles.partyRow,
+                          { backgroundColor: C.card, borderColor: isLive ? friend.color + '55' : C.border },
+                          isLive && { borderWidth: 1.5 },
+                        ]}
+                        onPress={() => setExpandedFriend(isExpanded ? null : friend.id)}
+                      >
+                        {isLive
+                          ? <BuzzingRing color={friend.color} initials={friend.initials} />
+                          : (
+                            <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: friend.color + '22',
+                                alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: friend.color, fontSize: 13, fontWeight: '900' }}>{friend.initials}</Text>
+                              </View>
+                            </View>
+                          )
+                        }
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.partyFriendName, { color: C.text }]}>{friend.name}</Text>
+                            {isLive && (
+                              <View style={[styles.partyLiveChip, { backgroundColor: friend.color + '22', borderColor: friend.color + '55' }]}>
+                                <Text style={[styles.partyLiveText, { color: friend.color }]}>● LIVE</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={[styles.partyHandle, { color: C.textMuted }]}>{friend.handle}</Text>
+                        </View>
+                        <View style={[styles.partyCountChip, { backgroundColor: C.surface, borderColor: C.border }]}>
+                          <Text style={[styles.partyCountText, { color: C.textSecondary }]}>
+                            {friendEvents.length} {friendEvents.length === 1 ? 'event' : 'events'}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                          size={16}
+                          color={C.textMuted}
+                        />
+                      </Pressable>
+
+                      {isExpanded && (
+                        <View style={styles.partyExpanded}>
+                          {friendEvents.map(ev => {
+                            const evDate = parseDateStr(ev.date).getTime();
+                            const isEvLive = evDate === today;
+                            return (
+                              <Pressable
+                                key={ev.id}
+                                style={[styles.partyEventRow, { backgroundColor: C.surface, borderColor: C.border }]}
+                                onPress={() => router.push(`/event/${ev.id}` as never)}
+                              >
+                                <Ionicons name="ticket-outline" size={14} color={friend.color} />
+                                <Text style={[styles.partyEventTitle, { color: C.text }]} numberOfLines={1}>{ev.title}</Text>
+                                {isEvLive ? (
+                                  <View style={[styles.partyLiveChip, { backgroundColor: friend.color + '22', borderColor: friend.color + '55' }]}>
+                                    <Text style={[styles.partyLiveText, { color: friend.color }]}>NOW</Text>
+                                  </View>
+                                ) : (
+                                  <View style={[styles.partyDateChip, { backgroundColor: C.card, borderColor: C.border }]}>
+                                    <Text style={[styles.partyDateText, { color: C.textMuted }]}>
+                                      {ev.date.split(',')[0].split(' ').slice(0, 2).join(' ')}
+                                    </Text>
+                                  </View>
+                                )}
+                                <Ionicons name="chevron-forward" size={13} color={C.textMuted} />
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })()}
 
         {/* Social connect modal */}
         {socialModal !== null && (
@@ -798,18 +899,23 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800' },
   statLabel: { fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
 
-  // Party Animal
+  // Party Animals
   partySection: { marginHorizontal: 20, marginTop: 14 },
   partyHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 14 },
   partyTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
   partySub: { fontSize: 12 },
-  partyFeed: { gap: 8, marginTop: 14 },
-  partyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, borderWidth: 1 },
-  partyDot: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  partyDotText: { fontSize: 13, fontWeight: '900', color: '#fff' },
-  partyFriendName: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  partyEventName: { fontSize: 12 },
-  partyDateChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  partyFeed: { gap: 8 },
+  partyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1 },
+  partyFriendName: { fontSize: 14, fontWeight: '800', letterSpacing: -0.1 },
+  partyHandle: { fontSize: 12, marginTop: 1 },
+  partyLiveChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+  partyLiveText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+  partyCountChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  partyCountText: { fontSize: 11, fontWeight: '600' },
+  partyExpanded: { marginTop: 4, marginLeft: 18, gap: 4, marginBottom: 4 },
+  partyEventRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
+  partyEventTitle: { flex: 1, fontSize: 13, fontWeight: '600' },
+  partyDateChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
   partyDateText: { fontSize: 10, fontWeight: '600' },
 
   socialCard: { marginHorizontal: 20, marginTop: 14, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
