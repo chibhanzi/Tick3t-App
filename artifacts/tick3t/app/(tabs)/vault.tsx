@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Pressable, Image, FlatList, Alert,
-  Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -185,6 +185,15 @@ function VaultTicketCard({
     );
   };
 
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `🎟️ I'm going to ${ticket.eventTitle}!\n📅 ${ticket.eventDate}${ticket.eventTime ? ` · ${ticket.eventTime}` : ''} · 📍 ${ticket.eventLocation}\n\nGet your ticket on Tick3t → https://tick3t.app`,
+        title: `I'm attending ${ticket.eventTitle}`,
+      });
+    } catch { /* dismissed */ }
+  };
+
   return (
     <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
       {/* Top: event image */}
@@ -255,6 +264,14 @@ function VaultTicketCard({
               <Text style={[styles.viewBtnText, { color: C.textSecondary }]}>Transfer</Text>
             </Pressable>
           )}
+
+          <Pressable
+            style={[styles.shareTicketBtn, { borderColor: '#22c55e55', backgroundColor: '#22c55e12' }]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-social-outline" size={14} color="#22c55e" />
+            <Text style={[styles.viewBtnText, { color: '#22c55e' }]}>Share</Text>
+          </Pressable>
         </View>
 
         {upcoming && (
@@ -605,6 +622,7 @@ const styles = StyleSheet.create({
   viewBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
   viewBtnText: { fontSize: 13, fontWeight: '600' },
   transferBtn2: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
+  shareTicketBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
 
   resaleRow: { flexDirection: 'row' },
   resaleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 10 },

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, Image, Alert,
-  Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
+  Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +38,7 @@ export default function MarketplaceScreen() {
 
   // Buy modal
   const [buyTarget, setBuyTarget] = useState<MarketplaceListing | null>(null);
+  const [buyDone, setBuyDone] = useState(false);
   const [buying, setBuying] = useState(false);
 
   // Offer modal
@@ -89,25 +90,29 @@ export default function MarketplaceScreen() {
 
   const handleBuy = (listing: MarketplaceListing) => requireAuth(() => setBuyTarget(listing));
 
+  const closeBuyModal = () => { setBuyTarget(null); setBuyDone(false); };
+
   const confirmBuy = async () => {
     if (!buyTarget) return;
     setBuying(true);
     try {
       await purchaseMarketplaceTicket(buyTarget);
-      setBuyTarget(null);
-      Alert.alert(
-        '🎫 Ticket Secured!',
-        `Your ticket for ${buyTarget.eventTitle} is now in your Vault.`,
-        [
-          { text: 'View Vault', onPress: () => router.push('/(tabs)/vault') },
-          { text: 'Stay here', style: 'cancel' },
-        ]
-      );
+      setBuyDone(true);
     } catch {
       Alert.alert('Purchase failed', 'Something went wrong. Please try again.');
     } finally {
       setBuying(false);
     }
+  };
+
+  const handleSharePurchase = async () => {
+    if (!buyTarget) return;
+    try {
+      await Share.share({
+        message: `🎟️ I'm going to ${buyTarget.eventTitle}!\n📅 ${buyTarget.eventDate} · 📍 ${buyTarget.eventLocation}\n\nGet your ticket on Tick3t → https://tick3t.app`,
+        title: `I'm attending ${buyTarget.eventTitle}`,
+      });
+    } catch { /* dismissed */ }
   };
 
   const handleOffer = (listing: MarketplaceListing) => {
@@ -313,79 +318,120 @@ export default function MarketplaceScreen() {
         visible={!!buyTarget}
         transparent
         animationType="slide"
-        onRequestClose={() => !buying && setBuyTarget(null)}
+        onRequestClose={() => !buying && closeBuyModal()}
       >
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => !buying && setBuyTarget(null)} />
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => !buying && closeBuyModal()} />
           <View style={[styles.modalSheet, { backgroundColor: C.card, borderColor: C.border }]}>
             <View style={[styles.handle, { backgroundColor: C.border }]} />
-            <Text style={[styles.modalTitle, { color: C.text }]}>Confirm Purchase</Text>
 
-            {buyTarget && (
+            {buyDone ? (
+              /* ── Success screen ── */
+              <View style={styles.successWrap}>
+                <View style={[styles.successIcon, { backgroundColor: '#22c55e20' }]}>
+                  <Ionicons name="checkmark-circle" size={52} color="#22c55e" />
+                </View>
+                <Text style={[styles.successTitle, { color: C.text }]}>You're Going! 🎉</Text>
+                <Text style={[styles.successDesc, { color: C.textMuted }]}>
+                  Your ticket for{' '}
+                  <Text style={{ color: C.text, fontWeight: '700' }}>{buyTarget?.eventTitle}</Text>
+                  {' '}is secured in your Vault as an NFT.
+                </Text>
+                <Pressable
+                  style={[styles.shareBtn, { backgroundColor: '#22c55e' }]}
+                  onPress={handleSharePurchase}
+                >
+                  <Ionicons name="share-social-outline" size={18} color="#fff" />
+                  <Text style={styles.shareBtnText}>Share to Socials</Text>
+                </Pressable>
+                <View style={styles.modalActions}>
+                  <Pressable
+                    style={[styles.cancelBtn, { borderColor: C.border }]}
+                    onPress={closeBuyModal}
+                  >
+                    <Text style={[styles.cancelBtnText, { color: C.textSecondary }]}>Done</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.confirmBuyBtn, { backgroundColor: C.primary }]}
+                    onPress={() => { closeBuyModal(); router.push('/(tabs)/vault'); }}
+                  >
+                    <Ionicons name="wallet-outline" size={16} color="#fff" />
+                    <Text style={styles.confirmBuyText}>View Vault</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              /* ── Confirmation screen ── */
               <>
-                <View style={[styles.buyEventRow, { backgroundColor: C.surface, borderColor: C.border }]}>
-                  <Image source={{ uri: buyTarget.eventImage }} style={styles.buyThumb} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.buyEventTitle, { color: C.text }]} numberOfLines={2}>
-                      {buyTarget.eventTitle}
-                    </Text>
-                    <Text style={[styles.buyEventMeta, { color: C.textMuted }]}>
-                      {buyTarget.tierName} · ×{buyTarget.quantity}
-                    </Text>
-                    <Text style={[styles.buyEventMeta, { color: C.textMuted }]}>
-                      {buyTarget.eventDate} · {buyTarget.eventLocation}
-                    </Text>
-                  </View>
-                </View>
+                <Text style={[styles.modalTitle, { color: C.text }]}>Confirm Purchase</Text>
 
-                <View style={[styles.buyPriceRow, { backgroundColor: C.surface, borderColor: C.border }]}>
-                  <View style={styles.buyPriceItem}>
-                    <Text style={[styles.buyPriceLabel, { color: C.textMuted }]}>Resale Price</Text>
-                    <Text style={[styles.buyPriceValue, { color: C.primary }]}>${buyTarget.resalePrice}</Text>
-                  </View>
-                  <View style={[styles.buyPriceDivider, { backgroundColor: C.border }]} />
-                  <View style={styles.buyPriceItem}>
-                    <Text style={[styles.buyPriceLabel, { color: C.textMuted }]}>Original</Text>
-                    <Text style={[styles.buyPriceValue, { color: C.textSecondary }]}>${buyTarget.originalPrice}</Text>
-                  </View>
-                  <View style={[styles.buyPriceDivider, { backgroundColor: C.border }]} />
-                  <View style={styles.buyPriceItem}>
-                    <Text style={[styles.buyPriceLabel, { color: C.textMuted }]}>Seller</Text>
-                    <Text style={[styles.buyPriceValue, { color: C.text }]}>@{buyTarget.seller}</Text>
-                  </View>
-                </View>
+                {buyTarget && (
+                  <>
+                    <View style={[styles.buyEventRow, { backgroundColor: C.surface, borderColor: C.border }]}>
+                      <Image source={{ uri: buyTarget.eventImage }} style={styles.buyThumb} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.buyEventTitle, { color: C.text }]} numberOfLines={2}>
+                          {buyTarget.eventTitle}
+                        </Text>
+                        <Text style={[styles.buyEventMeta, { color: C.textMuted }]}>
+                          {buyTarget.tierName} · ×{buyTarget.quantity}
+                        </Text>
+                        <Text style={[styles.buyEventMeta, { color: C.textMuted }]}>
+                          {buyTarget.eventDate} · {buyTarget.eventLocation}
+                        </Text>
+                      </View>
+                    </View>
 
-                <View style={[styles.buyTrustRow, { backgroundColor: '#6366F115', borderColor: '#6366F140' }]}>
-                  <Ionicons name="shield-checkmark-outline" size={14} color="#818CF8" />
-                  <Text style={[styles.buyTrustText, { color: '#818CF8' }]}>
-                    Secured via Paynow · NFT transferred on TON blockchain
-                  </Text>
+                    <View style={[styles.buyPriceRow, { backgroundColor: C.surface, borderColor: C.border }]}>
+                      <View style={styles.buyPriceItem}>
+                        <Text style={[styles.buyPriceLabel, { color: C.textMuted }]}>Resale Price</Text>
+                        <Text style={[styles.buyPriceValue, { color: C.primary }]}>${buyTarget.resalePrice}</Text>
+                      </View>
+                      <View style={[styles.buyPriceDivider, { backgroundColor: C.border }]} />
+                      <View style={styles.buyPriceItem}>
+                        <Text style={[styles.buyPriceLabel, { color: C.textMuted }]}>Original</Text>
+                        <Text style={[styles.buyPriceValue, { color: C.textSecondary }]}>${buyTarget.originalPrice}</Text>
+                      </View>
+                      <View style={[styles.buyPriceDivider, { backgroundColor: C.border }]} />
+                      <View style={styles.buyPriceItem}>
+                        <Text style={[styles.buyPriceLabel, { color: C.textMuted }]}>Seller</Text>
+                        <Text style={[styles.buyPriceValue, { color: C.text }]}>@{buyTarget.seller}</Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.buyTrustRow, { backgroundColor: '#6366F115', borderColor: '#6366F140' }]}>
+                      <Ionicons name="shield-checkmark-outline" size={14} color="#818CF8" />
+                      <Text style={[styles.buyTrustText, { color: '#818CF8' }]}>
+                        Secured via Paynow · NFT transferred on TON blockchain
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                <View style={styles.modalActions}>
+                  <Pressable
+                    style={[styles.cancelBtn, { borderColor: C.border }]}
+                    onPress={closeBuyModal}
+                    disabled={buying}
+                  >
+                    <Text style={[styles.cancelBtnText, { color: C.textSecondary }]}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.confirmBuyBtn, { backgroundColor: buying ? C.primary + 'aa' : C.primary }]}
+                    onPress={confirmBuy}
+                    disabled={buying}
+                  >
+                    {buying
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <>
+                          <Ionicons name="bag-check-outline" size={16} color="#fff" />
+                          <Text style={styles.confirmBuyText}>Buy Now · ${buyTarget?.resalePrice}</Text>
+                        </>
+                    }
+                  </Pressable>
                 </View>
               </>
             )}
-
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.cancelBtn, { borderColor: C.border }]}
-                onPress={() => setBuyTarget(null)}
-                disabled={buying}
-              >
-                <Text style={[styles.cancelBtnText, { color: C.textSecondary }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.confirmBuyBtn, { backgroundColor: buying ? C.primary + 'aa' : C.primary }]}
-                onPress={confirmBuy}
-                disabled={buying}
-              >
-                {buying
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <>
-                      <Ionicons name="bag-check-outline" size={16} color="#fff" />
-                      <Text style={styles.confirmBuyText}>Buy Now · ${buyTarget?.resalePrice}</Text>
-                    </>
-                }
-              </Pressable>
-            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -571,6 +617,8 @@ const styles = StyleSheet.create({
   buyTrustText: { flex: 1, fontSize: 12, fontWeight: '600' },
   confirmBuyBtn: { flex: 2, height: 50, borderRadius: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   confirmBuyText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  shareBtn: { width: '100%', height: 52, borderRadius: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
+  shareBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   // Offer modal
   offerEventRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 20 },
