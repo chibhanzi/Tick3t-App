@@ -381,22 +381,25 @@ export default function VaultScreen() {
         </View>
       </View>
 
-      {/* Stats row (only when tickets exist) */}
+      {/* Stats grid (only when tickets exist) */}
       {tickets.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow} style={{ maxHeight: 72 }}>
+        <View style={[styles.statsGrid, { backgroundColor: C.card, borderColor: C.border }]}>
           {[
             { icon: 'ticket-outline' as const, label: 'Upcoming', value: String(tickets.filter(t => t.status === 'upcoming').length), color: C.primary },
             { icon: 'checkmark-circle-outline' as const, label: 'Attended', value: String(tickets.filter(t => t.status === 'past').length), color: '#22c55e' },
             { icon: 'storefront-outline' as const, label: 'Listed', value: String(activeListings), color: '#F59E0B' },
-            { icon: 'card-outline' as const, label: 'Total Spent', value: `$${totalSpent}`, color: '#818CF8' },
+            { icon: 'card-outline' as const, label: 'Spent', value: `$${totalSpent}`, color: '#818CF8' },
           ].map((s, i) => (
-            <View key={i} style={[styles.statCard, { backgroundColor: C.card, borderColor: C.border }]}>
-              <Ionicons name={s.icon} size={15} color={s.color} />
+            <View
+              key={i}
+              style={[styles.statItem, i < 3 && { borderRightWidth: 1, borderRightColor: C.border }]}
+            >
+              <Ionicons name={s.icon} size={18} color={s.color} />
               <Text style={[styles.statValue, { color: C.text }]}>{s.value}</Text>
               <Text style={[styles.statLabel, { color: C.textMuted }]}>{s.label}</Text>
             </View>
           ))}
-        </ScrollView>
+        </View>
       )}
 
       {/* Success / info banner */}
@@ -549,9 +552,9 @@ const styles = StyleSheet.create({
   countBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
   countText: { fontSize: 13, fontWeight: '700' },
 
-  statsRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 12 },
-  statCard: { alignItems: 'center', gap: 3, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, minWidth: 80 },
-  statValue: { fontSize: 16, fontWeight: '800' },
+  statsGrid: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  statItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
+  statValue: { fontSize: 20, fontWeight: '800' },
   statLabel: { fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, borderRadius: 10, padding: 12, borderWidth: 1, marginBottom: 8 },
