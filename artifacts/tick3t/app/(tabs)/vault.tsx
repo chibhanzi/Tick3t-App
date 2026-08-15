@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Pressable, Image, FlatList, Alert,
-  Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
+  Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,15 @@ import ListForResaleModal from '@/components/ListForResaleModal';
 import AuthPrompt from '@/components/AuthPrompt';
 
 type Filter = 'upcoming' | 'past';
+type SortKey = 'date-desc' | 'date-asc' | 'price-desc' | 'price-asc' | 'name';
+
+const SORT_OPTIONS: { label: string; value: SortKey }[] = [
+  { label: 'Newest', value: 'date-desc' },
+  { label: 'Oldest', value: 'date-asc' },
+  { label: 'Price ↑', value: 'price-asc' },
+  { label: 'Price ↓', value: 'price-desc' },
+  { label: 'A → Z', value: 'name' },
+];
 
 // ── Transfer Modal ────────────────────────────────────────────────────────────
 
@@ -62,7 +71,6 @@ function TransferModal({
       <Pressable style={styles.backdrop} onPress={handleClose} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetWrap}>
         <View style={[styles.sheet, { backgroundColor: C.card }]}>
-          {/* Handle */}
           <View style={[styles.handle, { backgroundColor: C.border }]} />
 
           {done ? (
@@ -83,7 +91,6 @@ function TransferModal({
                 Send your ticket to another Tick3t user or TON wallet address. This cannot be undone.
               </Text>
 
-              {/* Ticket summary */}
               <View style={[styles.ticketSummary, { backgroundColor: C.background, borderColor: C.border }]}>
                 <Image source={{ uri: ticket.eventImage }} style={styles.summaryImage} />
                 <View style={{ flex: 1 }}>
@@ -180,7 +187,7 @@ function VaultTicketCard({
 
   return (
     <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
-      {/* Top: event image — tap to view ticket detail */}
+      {/* Top: event image */}
       <Pressable onPress={() => router.push(`/ticket/${ticket.id}`)}>
         <View style={styles.imageWrap}>
           <Image source={{ uri: ticket.eventImage }} style={styles.image} />
@@ -230,7 +237,6 @@ function VaultTicketCard({
           ))}
         </View>
 
-        {/* Primary actions row */}
         <View style={styles.actionsRow}>
           <Pressable
             style={[styles.viewBtn, { borderColor: C.border }]}
@@ -251,7 +257,6 @@ function VaultTicketCard({
           )}
         </View>
 
-        {/* Resale action row */}
         {upcoming && (
           <View style={styles.resaleRow}>
             {isListed ? (
@@ -286,11 +291,35 @@ export default function VaultScreen() {
   const { tickets, listedTicketIds, marketplace, addMarketplaceListing, cancelListing, transferTicket } = useApp();
   const router = useRouter();
 
-  // All hooks must be called unconditionally before any early returns
+  // All hooks before any early return
   const [filter, setFilter] = useState<Filter>('upcoming');
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<SortKey>('date-desc');
+  const [showSort, setShowSort] = useState(false);
   const [modalTicket, setModalTicket] = useState<PurchasedTicket | null>(null);
   const [transferTicketItem, setTransferTicketItem] = useState<PurchasedTicket | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+
+  const filtered = useMemo(() => {
+    let list = tickets.filter(t => t.status === filter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(t =>
+        t.eventTitle.toLowerCase().includes(q) ||
+        t.eventLocation.toLowerCase().includes(q) ||
+        t.tierName.toLowerCase().includes(q)
+      );
+    }
+    return [...list].sort((a, b) => {
+      switch (sortBy) {
+        case 'date-asc': return new Date(a.purchasedAt).getTime() - new Date(b.purchasedAt).getTime();
+        case 'price-desc': return b.totalPaid - a.totalPaid;
+        case 'price-asc': return a.totalPaid - b.totalPaid;
+        case 'name': return a.eventTitle.localeCompare(b.eventTitle);
+        default: return new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime();
+      }
+    });
+  }, [tickets, filter, search, sortBy]);
 
   if (!isAuthenticated) {
     return (
@@ -310,7 +339,9 @@ export default function VaultScreen() {
     );
   }
 
-  const filtered = tickets.filter(t => t.status === filter);
+  const totalSpent = tickets.reduce((s, t) => s + t.totalPaid, 0);
+  const activeListings = [...listedTicketIds].length;
+  const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Newest';
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -333,7 +364,6 @@ export default function VaultScreen() {
     showSuccess(`Ticket transferred to ${recipient}.`);
   };
 
-  // Find the marketplace listing ID for a given ticket (so we can cancel it)
   const getListingId = (ticketId: string) =>
     marketplace.find(l => l.ticketId === ticketId)?.id;
 
@@ -351,18 +381,79 @@ export default function VaultScreen() {
         </View>
       </View>
 
+      {/* Stats row (only when tickets exist) */}
+      {tickets.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow} style={{ maxHeight: 72 }}>
+          {[
+            { icon: 'ticket-outline' as const, label: 'Upcoming', value: String(tickets.filter(t => t.status === 'upcoming').length), color: C.primary },
+            { icon: 'checkmark-circle-outline' as const, label: 'Attended', value: String(tickets.filter(t => t.status === 'past').length), color: '#22c55e' },
+            { icon: 'storefront-outline' as const, label: 'Listed', value: String(activeListings), color: '#F59E0B' },
+            { icon: 'card-outline' as const, label: 'Total Spent', value: `$${totalSpent}`, color: '#818CF8' },
+          ].map((s, i) => (
+            <View key={i} style={[styles.statCard, { backgroundColor: C.card, borderColor: C.border }]}>
+              <Ionicons name={s.icon} size={15} color={s.color} />
+              <Text style={[styles.statValue, { color: C.text }]}>{s.value}</Text>
+              <Text style={[styles.statLabel, { color: C.textMuted }]}>{s.label}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
       {/* Success / info banner */}
       {successMsg ? (
         <View style={[styles.successBanner, { backgroundColor: C.primary + '20', borderColor: C.primary + '50' }]}>
           <Ionicons name="checkmark-circle" size={16} color={C.primary} />
           <Text style={[styles.successText, { color: C.primary }]}>{successMsg}</Text>
         </View>
-      ) : null}
-
-      {/* NFT info banner (only when user has tickets) */}
-      {tickets.length > 0 && !successMsg && (
+      ) : tickets.length > 0 && (
         <View style={[styles.nftBanner, { backgroundColor: '#6366F115', borderColor: '#6366F140' }]}>
           <Text style={styles.nftBannerText}>⬡ Your tickets are NFTs on the TON blockchain · Show QR at entry</Text>
+        </View>
+      )}
+
+      {/* Search + Sort row */}
+      {tickets.length > 0 && (
+        <View style={styles.searchSortRow}>
+          <View style={[styles.searchWrap, { backgroundColor: C.card, borderColor: C.border }]}>
+            <Ionicons name="search-outline" size={15} color={C.textMuted} />
+            <TextInput
+              style={[styles.searchInput, { color: C.text }]}
+              placeholder="Search your vault…"
+              placeholderTextColor={C.textMuted}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => setSearch('')}>
+                <Ionicons name="close-circle" size={15} color={C.textMuted} />
+              </Pressable>
+            )}
+          </View>
+          <Pressable
+            style={[styles.sortBtn, { backgroundColor: C.card, borderColor: C.border }]}
+            onPress={() => setShowSort(!showSort)}
+          >
+            <Ionicons name="swap-vertical-outline" size={15} color={C.textSecondary} />
+            <Text style={[styles.sortBtnText, { color: C.textSecondary }]}>{currentSortLabel}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Sort options dropdown */}
+      {showSort && (
+        <View style={[styles.sortDropdown, { backgroundColor: C.card, borderColor: C.border }]}>
+          {SORT_OPTIONS.map(opt => (
+            <Pressable
+              key={opt.value}
+              style={[styles.sortOption, { borderBottomColor: C.border }]}
+              onPress={() => { setSortBy(opt.value); setShowSort(false); }}
+            >
+              <Text style={[styles.sortOptionText, { color: sortBy === opt.value ? C.primary : C.text }]}>{opt.label}</Text>
+              {sortBy === opt.value && <Ionicons name="checkmark" size={16} color={C.primary} />}
+            </Pressable>
+          ))}
         </View>
       )}
 
@@ -387,19 +478,25 @@ export default function VaultScreen() {
 
       {filtered.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name={filter === 'upcoming' ? 'ticket-outline' : 'time-outline'} size={60} color={C.textMuted} />
+          <Ionicons name={search ? 'search-outline' : filter === 'upcoming' ? 'ticket-outline' : 'time-outline'} size={60} color={C.textMuted} />
           <Text style={[styles.emptyTitle, { color: C.text }]}>
-            {filter === 'upcoming' ? 'No upcoming tickets' : 'No past events'}
+            {search ? `No results for "${search}"` : filter === 'upcoming' ? 'No upcoming tickets' : 'No past events'}
           </Text>
           <Text style={[styles.emptyText, { color: C.textMuted }]}>
-            {filter === 'upcoming'
+            {search
+              ? 'Try a different search term.'
+              : filter === 'upcoming'
               ? 'Buy a ticket from Discover — it appears here as a blockchain-verified NFT.'
               : 'Events you attend will show up here after the event date.'}
           </Text>
-          {filter === 'upcoming' && (
+          {search ? (
+            <Pressable style={[styles.discoverBtn, { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border }]} onPress={() => setSearch('')}>
+              <Text style={[styles.discoverBtnText, { color: C.textSecondary }]}>Clear search</Text>
+            </Pressable>
+          ) : filter === 'upcoming' && (
             <Pressable
               style={[styles.discoverBtn, { backgroundColor: C.primary }]}
-              onPress={() => router.push('/(tabs)/')}
+              onPress={() => router.push('/' as any)}
             >
               <Ionicons name="search-outline" size={15} color="#fff" />
               <Text style={styles.discoverBtnText}>Browse Events</Text>
@@ -446,19 +543,34 @@ export default function VaultScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10 },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { fontSize: 13, marginTop: 2 },
   countBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
   countText: { fontSize: 13, fontWeight: '700' },
 
+  statsRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 12 },
+  statCard: { alignItems: 'center', gap: 3, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, minWidth: 80 },
+  statValue: { fontSize: 16, fontWeight: '800' },
+  statLabel: { fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
+
   successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, borderRadius: 10, padding: 12, borderWidth: 1, marginBottom: 8 },
   successText: { fontSize: 13, fontWeight: '600', flex: 1 },
 
-  nftBanner: { marginHorizontal: 20, borderRadius: 10, padding: 12, borderWidth: 1, marginBottom: 12 },
+  nftBanner: { marginHorizontal: 20, borderRadius: 10, padding: 12, borderWidth: 1, marginBottom: 10 },
   nftBannerText: { color: '#818CF8', fontSize: 12, fontWeight: '600' },
 
-  filterRow: { flexDirection: 'row', marginHorizontal: 20, borderRadius: 12, borderWidth: 1, overflow: 'hidden', marginBottom: 16 },
+  searchSortRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 8 },
+  searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  searchInput: { flex: 1, fontSize: 14 },
+  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  sortBtnText: { fontSize: 12, fontWeight: '600' },
+
+  sortDropdown: { marginHorizontal: 20, borderRadius: 12, borderWidth: 1, marginBottom: 8, overflow: 'hidden' },
+  sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  sortOptionText: { fontSize: 14, fontWeight: '600' },
+
+  filterRow: { flexDirection: 'row', marginHorizontal: 20, borderRadius: 12, borderWidth: 1, overflow: 'hidden', marginBottom: 14 },
   filterTab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   filterTabText: { fontSize: 14, fontWeight: '700' },
   filterCount: { fontSize: 13, fontWeight: '600' },

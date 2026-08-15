@@ -1,1 +1,2 @@
 - [React hooks before early returns](hooks-before-returns.md) — always declare all hooks before any conditional returns, even auth guards; React will crash silently on web if hooks come after.
+- [Expo web nested Alert bug](expo-nested-alert.md) — nested Alert.alert() inside another Alert's button handler fails silently on Expo web; fix by using a proper Modal bottom-sheet.
