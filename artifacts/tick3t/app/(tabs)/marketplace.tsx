@@ -35,6 +35,12 @@ export default function MarketplaceScreen() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState('all');
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  // Staged filter values (applied only on "Apply")
+  const [stagedCategory, setStagedCategory] = useState('All');
+  const [stagedSort, setStagedSort] = useState('newest');
+  const [stagedPrice, setStagedPrice] = useState('all');
 
   // Buy modal
   const [buyTarget, setBuyTarget] = useState<MarketplaceListing | null>(null);
@@ -72,6 +78,32 @@ export default function MarketplaceScreen() {
       sortBy === 'price-desc' ? b.resalePrice - a.resalePrice : 0
     );
   }, [marketplace, active, search, priceRange, sortBy]);
+
+  const activeFilterCount =
+    (active !== 'All' ? 1 : 0) +
+    (sortBy !== 'newest' ? 1 : 0) +
+    (priceRange !== 'all' ? 1 : 0);
+
+  const openFilters = () => {
+    setStagedCategory(active);
+    setStagedSort(sortBy);
+    setStagedPrice(priceRange);
+    setFilterOpen(true);
+  };
+
+  const applyFilters = () => {
+    setActive(stagedCategory);
+    setSortBy(stagedSort);
+    setPriceRange(stagedPrice);
+    setFilterOpen(false);
+  };
+
+  const clearAllFilters = () => {
+    setActive('All'); setSearch('');
+    setSortBy('newest'); setPriceRange('all');
+    setStagedCategory('All'); setStagedSort('newest'); setStagedPrice('all');
+    setFilterOpen(false);
+  };
 
   const requireAuth = (action: () => void) => {
     if (!isAuthenticated) {
@@ -157,66 +189,39 @@ export default function MarketplaceScreen() {
         </View>
       </View>
 
-      {/* Search bar */}
-      <View style={[styles.searchWrap, { backgroundColor: C.card, borderColor: C.border }]}>
-        <Ionicons name="search-outline" size={16} color={C.textMuted} />
-        <TextInput
-          style={[styles.searchInput, { color: C.text }]}
-          placeholder="Search events, sellers, locations…"
-          placeholderTextColor={C.textMuted}
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-          autoCorrect={false}
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={16} color={C.textMuted} />
-          </Pressable>
-        )}
-      </View>
-
-      {/* Category filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterContent}
-      >
-        {CATEGORIES.map(f => (
-          <Pressable
-            key={f}
-            style={[styles.pill, { backgroundColor: active === f ? C.primary : C.card, borderColor: active === f ? C.primary : C.border }]}
-            onPress={() => setActive(f)}
-          >
-            <Text style={[styles.pillText, { color: active === f ? '#fff' : C.textSecondary }]}>{f}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* Sort + price filter row */}
-      <View style={styles.sortRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortContent}>
-          {SORT_OPTIONS.map(opt => (
-            <Pressable
-              key={opt.value}
-              style={[styles.sortPill, { backgroundColor: sortBy === opt.value ? C.primary + '22' : C.surface, borderColor: sortBy === opt.value ? C.primary : C.border }]}
-              onPress={() => setSortBy(opt.value)}
-            >
-              <Text style={[styles.sortPillText, { color: sortBy === opt.value ? C.primary : C.textMuted }]}>{opt.label}</Text>
+      {/* Search bar + Filter button */}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchWrap, { backgroundColor: C.card, borderColor: C.border }]}>
+          <Ionicons name="search-outline" size={16} color={C.textMuted} />
+          <TextInput
+            style={[styles.searchInput, { color: C.text }]}
+            placeholder="Search events, sellers, locations…"
+            placeholderTextColor={C.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={16} color={C.textMuted} />
             </Pressable>
-          ))}
-          <View style={[styles.sortDivider, { backgroundColor: C.border }]} />
-          {PRICE_RANGES.map(opt => (
-            <Pressable
-              key={opt.value}
-              style={[styles.sortPill, { backgroundColor: priceRange === opt.value ? '#F59E0B22' : C.surface, borderColor: priceRange === opt.value ? '#F59E0B' : C.border }]}
-              onPress={() => setPriceRange(opt.value)}
-            >
-              <Text style={[styles.sortPillText, { color: priceRange === opt.value ? '#F59E0B' : C.textMuted }]}>{opt.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+          )}
+        </View>
+        <Pressable
+          style={[styles.filterBtn, {
+            backgroundColor: activeFilterCount > 0 ? C.primary + '18' : C.card,
+            borderColor: activeFilterCount > 0 ? C.primary : C.border,
+          }]}
+          onPress={openFilters}
+        >
+          <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? C.primary : C.textSecondary} />
+          {activeFilterCount > 0 && (
+            <View style={[styles.filterBadge, { backgroundColor: C.primary }]}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </Pressable>
       </View>
 
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
@@ -312,6 +317,79 @@ export default function MarketplaceScreen() {
         )}
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      {/* ── Filter Sheet ─────────────────────────────────────────────────────────── */}
+      <Modal visible={filterOpen} transparent animationType="slide" onRequestClose={() => setFilterOpen(false)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setFilterOpen(false)} />
+          <View style={[styles.modalSheet, { backgroundColor: C.card, borderColor: C.border }]}>
+            <View style={[styles.handle, { backgroundColor: C.border }]} />
+
+            {/* Sheet header */}
+            <View style={styles.filterSheetHeader}>
+              <Text style={[styles.modalTitle, { color: C.text, marginBottom: 0 }]}>Filters</Text>
+              <Pressable onPress={clearAllFilters}>
+                <Text style={[styles.filterClearText, { color: C.primary }]}>Clear all</Text>
+              </Pressable>
+            </View>
+
+            {/* Category */}
+            <Text style={[styles.filterSectionLabel, { color: C.textMuted }]}>CATEGORY</Text>
+            <View style={styles.filterChipGroup}>
+              {CATEGORIES.map(f => (
+                <Pressable
+                  key={f}
+                  style={[styles.filterChip, {
+                    backgroundColor: stagedCategory === f ? C.primary : C.surface,
+                    borderColor: stagedCategory === f ? C.primary : C.border,
+                  }]}
+                  onPress={() => setStagedCategory(f)}
+                >
+                  <Text style={[styles.filterChipText, { color: stagedCategory === f ? '#fff' : C.textSecondary }]}>{f}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Sort */}
+            <Text style={[styles.filterSectionLabel, { color: C.textMuted }]}>SORT BY</Text>
+            <View style={styles.filterChipGroup}>
+              {SORT_OPTIONS.map(opt => (
+                <Pressable
+                  key={opt.value}
+                  style={[styles.filterChip, {
+                    backgroundColor: stagedSort === opt.value ? C.primary + '22' : C.surface,
+                    borderColor: stagedSort === opt.value ? C.primary : C.border,
+                  }]}
+                  onPress={() => setStagedSort(opt.value)}
+                >
+                  <Text style={[styles.filterChipText, { color: stagedSort === opt.value ? C.primary : C.textSecondary }]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Price range */}
+            <Text style={[styles.filterSectionLabel, { color: C.textMuted }]}>PRICE RANGE</Text>
+            <View style={styles.filterChipGroup}>
+              {PRICE_RANGES.map(opt => (
+                <Pressable
+                  key={opt.value}
+                  style={[styles.filterChip, {
+                    backgroundColor: stagedPrice === opt.value ? '#F59E0B22' : C.surface,
+                    borderColor: stagedPrice === opt.value ? '#F59E0B' : C.border,
+                  }]}
+                  onPress={() => setStagedPrice(opt.value)}
+                >
+                  <Text style={[styles.filterChipText, { color: stagedPrice === opt.value ? '#F59E0B' : C.textSecondary }]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable style={[styles.applyBtn, { backgroundColor: C.primary }]} onPress={applyFilters}>
+              <Text style={styles.applyBtnText}>Apply Filters</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ── Buy Confirmation Modal ──────────────────────────────────────────────── */}
       <Modal
@@ -549,19 +627,21 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3 },
   liveText: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
 
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, marginBottom: 10, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingBottom: 10 },
+  searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   searchInput: { flex: 1, fontSize: 14 },
+  filterBtn: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  filterBadge: { position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  filterBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
 
-  filterScroll: { maxHeight: 46 },
-  filterContent: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
-  pill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
-  pillText: { fontSize: 13, fontWeight: '600' },
-
-  sortRow: { marginBottom: 4 },
-  sortContent: { paddingHorizontal: 20, gap: 6, paddingVertical: 8, alignItems: 'center' },
-  sortPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
-  sortPillText: { fontSize: 12, fontWeight: '600' },
-  sortDivider: { width: 1, height: 18, marginHorizontal: 4 },
+  filterSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  filterClearText: { fontSize: 14, fontWeight: '700' },
+  filterSectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 10 },
+  filterChipGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  filterChipText: { fontSize: 13, fontWeight: '600' },
+  applyBtn: { height: 52, borderRadius: 50, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  applyBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   list: { flex: 1 },
   listContent: { padding: 20, gap: 16 },
