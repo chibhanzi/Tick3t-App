@@ -15,7 +15,7 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const { getEventById, purchaseTicket, followedOrganizers, toggleFollowOrganizer } = useApp();
+  const { getEventById, purchaseTicket, followedOrganizers, toggleFollowOrganizer, connectedSocials } = useApp();
   const event = getEventById(id ?? '');
 
   const [selectedTier, setSelectedTier] = useState(0);
@@ -176,6 +176,27 @@ export default function EventDetailScreen() {
               {org?.bio && (
                 <Text style={[styles.orgBio, { color: C.textSecondary }]}>{org.bio}</Text>
               )}
+              {/* Social proof */}
+              {(() => {
+                let mutualNames: string[] = [];
+                let mutualIcon = '';
+                for (const platform of Object.keys(connectedSocials)) {
+                  const names = (org?.mutuals as Record<string, string[]> | undefined)?.[platform] ?? [];
+                  if (names.length > 0) { mutualNames = names; mutualIcon = platform === 'instagram' ? '📸' : '𝕏'; break; }
+                }
+                if (mutualNames.length === 0) return null;
+                const text = mutualNames.length === 1
+                  ? `${mutualNames[0]} follows this organizer`
+                  : mutualNames.length === 2
+                  ? `${mutualNames[0]} & ${mutualNames[1]} follow this organizer`
+                  : `${mutualNames[0]}, ${mutualNames[1]} & ${mutualNames.length - 2} others follow this organizer`;
+                return (
+                  <View style={[styles.orgMutualRow, { backgroundColor: C.surface, borderColor: C.border }]}>
+                    <Text style={styles.orgMutualIcon}>{mutualIcon}</Text>
+                    <Text style={[styles.orgMutualText, { color: C.textSecondary }]}>{text}</Text>
+                  </View>
+                );
+              })()}
             </View>
           );
         })()}
@@ -389,6 +410,9 @@ const styles = StyleSheet.create({
   followBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
   followBtnText: { fontSize: 13, fontWeight: '700' },
   orgBio: { fontSize: 13, lineHeight: 19 },
+  orgMutualRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 7 },
+  orgMutualIcon: { fontSize: 14 },
+  orgMutualText: { flex: 1, fontSize: 12, lineHeight: 17 },
 
   trustRow: { flexDirection: 'row', borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 8, gap: 0 },
   trustItem: { flex: 1, alignItems: 'center', gap: 4 },

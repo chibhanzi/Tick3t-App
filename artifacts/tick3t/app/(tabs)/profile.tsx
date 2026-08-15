@@ -49,7 +49,7 @@ const bs = StyleSheet.create({
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { user: authUser, signOut, isAuthenticated } = useAuth();
-  const { tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer } = useApp();
+  const { tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial } = useApp();
   const router = useRouter();
 
   // Profile edit
@@ -64,6 +64,8 @@ export default function ProfileScreen() {
   const [securityModal, setSecurityModal] = useState(false);
   const [referModal, setReferModal] = useState(false);
   const [helpModal, setHelpModal] = useState(false);
+  const [socialModal, setSocialModal] = useState<string | null>(null);
+  const [socialHandle, setSocialHandle] = useState('');
 
   // Paynow form
   const [paynowPhone, setPaynowPhone] = useState('');
@@ -286,6 +288,42 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {/* Connected Socials */}
+        <View style={[styles.socialCard, { backgroundColor: C.card, borderColor: C.border }]}>
+          <View style={styles.socialCardHeader}>
+            <Text style={[styles.socialCardTitle, { color: C.text }]}>Connected Socials</Text>
+            <Text style={[styles.socialCardSubtitle, { color: C.textMuted }]}>See mutual followers on event cards</Text>
+          </View>
+          {([
+            { platform: 'instagram', icon: '📸', label: 'Instagram', color: '#E1306C' },
+            { platform: 'twitter', icon: '𝕏', label: 'X (Twitter)', color: '#1DA1F2' },
+          ] as const).map((s, i) => (
+            <View key={s.platform} style={[styles.socialRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+              <View style={[styles.socialIconBox, { backgroundColor: s.color + '18' }]}>
+                <Text style={styles.socialIconText}>{s.icon}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.socialLabel, { color: C.text }]}>{s.label}</Text>
+                <Text style={[styles.socialHandleText, { color: connectedSocials[s.platform] ? C.primary : C.textMuted }]}>
+                  {connectedSocials[s.platform] ?? 'Not connected'}
+                </Text>
+              </View>
+              {connectedSocials[s.platform] ? (
+                <Pressable onPress={() => disconnectSocial(s.platform)} style={styles.socialDisconnect}>
+                  <Text style={styles.socialDisconnectText}>Disconnect</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => { setSocialModal(s.platform); setSocialHandle(''); }}
+                  style={[styles.socialConnect, { backgroundColor: s.color + '18', borderColor: s.color + '44' }]}
+                >
+                  <Text style={[styles.socialConnectText, { color: s.color }]}>Connect</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+        </View>
+
         {/* Spending summary */}
         {totalSpent > 0 && (
           <View style={[styles.spendCard, { backgroundColor: C.card, borderColor: C.border }]}>
@@ -354,6 +392,45 @@ export default function ProfileScreen() {
             </Pressable>
           ))}
         </View>
+
+        {/* Social connect modal */}
+        {socialModal !== null && (
+          <BottomSheet
+            visible
+            onClose={() => { setSocialModal(null); setSocialHandle(''); }}
+            title={`Connect ${socialModal === 'instagram' ? 'Instagram' : 'X (Twitter)'}`}
+          >
+            <Text style={[styles.sheetDesc, { color: C.textMuted }]}>
+              Enter your @handle so we can surface when people you follow also attend events. We never post on your behalf.
+            </Text>
+            <View style={styles.formField}>
+              <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Your handle</Text>
+              <View style={[styles.fieldInput, { borderColor: C.border, backgroundColor: C.surface }]}>
+                <Text style={{ color: C.textMuted, fontSize: 14, paddingRight: 2 }}>@</Text>
+                <TextInput
+                  style={[styles.fieldText, { color: C.text }]}
+                  placeholder={socialModal === 'instagram' ? 'yourhandle' : 'yourhandle'}
+                  placeholderTextColor={C.textMuted}
+                  value={socialHandle}
+                  onChangeText={setSocialHandle}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+            <Pressable
+              style={[styles.sheetBtn, { backgroundColor: C.primary, opacity: socialHandle.trim() ? 1 : 0.45 }]}
+              onPress={() => {
+                if (!socialHandle.trim()) return;
+                connectSocial(socialModal!, '@' + socialHandle.replace('@', '').trim());
+                setSocialModal(null);
+                setSocialHandle('');
+              }}
+            >
+              <Text style={styles.sheetBtnText}>Connect Account</Text>
+            </Pressable>
+          </BottomSheet>
+        )}
 
         {/* Sign Out */}
         <Pressable
@@ -568,6 +645,20 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
   statValue: { fontSize: 20, fontWeight: '800' },
   statLabel: { fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
+
+  socialCard: { marginHorizontal: 20, marginTop: 14, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  socialCardHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
+  socialCardTitle: { fontSize: 15, fontWeight: '800', letterSpacing: -0.2, marginBottom: 2 },
+  socialCardSubtitle: { fontSize: 12 },
+  socialRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  socialIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  socialIconText: { fontSize: 18 },
+  socialLabel: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  socialHandleText: { fontSize: 12 },
+  socialConnect: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
+  socialConnectText: { fontSize: 12, fontWeight: '700' },
+  socialDisconnect: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#EF444444' },
+  socialDisconnectText: { fontSize: 12, fontWeight: '700', color: '#F87171' },
 
   followingSection: { marginHorizontal: 20, marginTop: 14 },
   followingHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 14 },

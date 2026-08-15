@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
+import { useApp, MOCK_ORGANIZERS } from '@/context/AppContext';
 import { Event } from '@/types';
 import { getAvailabilityPercent } from '@/utils/format';
 
@@ -21,6 +22,21 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
   const almostGone = !soldOut && availPct >= 70;
   const trending = event.attendees > 1000;
 
+  // Following & social proof
+  const { followedOrganizers, connectedSocials } = useApp();
+  const org = MOCK_ORGANIZERS[event.organizer];
+  const isFollowing = followedOrganizers.has(event.organizer);
+  let mutualNames: string[] = [];
+  let mutualIcon = '';
+  for (const platform of Object.keys(connectedSocials)) {
+    const names = (org?.mutuals as Record<string, string[]> | undefined)?.[platform] ?? [];
+    if (names.length > 0) { mutualNames = names; mutualIcon = platform === 'instagram' ? '📸' : '𝕏'; break; }
+  }
+  const mutualText = mutualNames.length === 0 ? null
+    : mutualNames.length === 1 ? `${mutualIcon} ${mutualNames[0]} follows this organizer`
+    : mutualNames.length === 2 ? `${mutualIcon} ${mutualNames[0]} & ${mutualNames[1]} follow this organizer`
+    : `${mutualIcon} ${mutualNames[0]}, ${mutualNames[1]} & ${mutualNames.length - 2} others follow this`;
+
   // ── FEATURED ──────────────────────────────────────────────────────────────
   if (variant === 'featured') {
     return (
@@ -32,6 +48,11 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
             <View style={[styles.badge, { backgroundColor: 'rgba(22,163,74,0.9)' }]}>
               <Text style={styles.badgeText}>{event.category}</Text>
             </View>
+            {isFollowing && (
+              <View style={[styles.badge, { backgroundColor: 'rgba(34,197,94,0.92)' }]}>
+                <Text style={styles.badgeText}>✓ Following</Text>
+              </View>
+            )}
             {trending && !soldOut && (
               <View style={[styles.badge, { backgroundColor: 'rgba(249,115,22,0.9)' }]}>
                 <Text style={styles.badgeText}>🔥 Trending</Text>
@@ -46,6 +67,9 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
           <Text style={styles.featuredTitle} numberOfLines={2}>{event.title}</Text>
           <Text style={styles.featuredMeta}>{event.date} · {event.time}</Text>
           <Text style={styles.featuredMeta}>📍 {event.location}</Text>
+          {mutualText && (
+            <Text style={styles.featuredMutual} numberOfLines={1}>{mutualText}</Text>
+          )}
           <View style={styles.featuredFooter}>
             <Text style={styles.featuredAttendees}>{event.attendees.toLocaleString()} going</Text>
             <View style={[styles.priceChip, { backgroundColor: C.primary }]}>
@@ -73,6 +97,11 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
             {trending && !soldOut && (
               <View style={[styles.smallBadge, { backgroundColor: 'rgba(249,115,22,0.85)' }]}>
                 <Text style={styles.smallBadgeText}>🔥</Text>
+              </View>
+            )}
+            {isFollowing && (
+              <View style={[styles.smallBadge, { backgroundColor: 'rgba(34,197,94,0.88)' }]}>
+                <Text style={styles.smallBadgeText}>✓</Text>
               </View>
             )}
           </View>
@@ -118,6 +147,11 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
           <View style={[styles.smallBadge, { backgroundColor: C.primary + '22', borderWidth: 1, borderColor: C.primary + '55' }]}>
             <Text style={[styles.smallBadgeText, { color: C.primary }]}>{event.category}</Text>
           </View>
+          {isFollowing && (
+            <View style={[styles.smallBadge, { backgroundColor: '#22c55e22', borderWidth: 1, borderColor: '#22c55e55' }]}>
+              <Text style={[styles.smallBadgeText, { color: '#22c55e' }]}>✓ Following</Text>
+            </View>
+          )}
           {trending && !soldOut && (
             <View style={[styles.smallBadge, { backgroundColor: '#F9731622', borderWidth: 1, borderColor: '#F9731655' }]}>
               <Text style={[styles.smallBadgeText, { color: '#F97316' }]}>🔥 Trending</Text>
@@ -147,6 +181,9 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
           <View style={[styles.availBar, { backgroundColor: C.border, marginTop: 10 }]}>
             <View style={[styles.availFill, { width: `${availPct}%`, backgroundColor: almostGone ? '#EF4444' : C.primary }]} />
           </View>
+        )}
+        {mutualText && (
+          <Text style={[styles.listMutual, { color: C.textMuted }]} numberOfLines={1}>{mutualText}</Text>
         )}
       </View>
     </Pressable>
@@ -186,6 +223,7 @@ const styles = StyleSheet.create({
   gridPrice: { fontSize: 14, fontWeight: '800' },
   availBar: { height: 3, borderRadius: 2, marginTop: 7, overflow: 'hidden' },
   availFill: { height: '100%', borderRadius: 2 },
+  featuredMutual: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginBottom: 4, fontStyle: 'italic' },
 
   // List
   listCard: { borderRadius: 14, overflow: 'hidden', marginBottom: 12, borderWidth: 1 },
@@ -197,4 +235,5 @@ const styles = StyleSheet.create({
   listFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
   listAttendees: { fontSize: 12 },
   listPrice: { fontSize: 15, fontWeight: '800' },
+  listMutual: { fontSize: 11, marginTop: 8, fontStyle: 'italic' },
 });

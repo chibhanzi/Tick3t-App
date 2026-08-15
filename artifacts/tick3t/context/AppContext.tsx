@@ -7,6 +7,7 @@ const USER_KEY = 'tick3t.mock-auth.user';
 const MARKETPLACE_KEY = 'tick3t.marketplace.listings';
 const LISTED_IDS_KEY = 'tick3t.marketplace.listed-ids';
 const FOLLOWING_KEY = 'tick3t.following.organizers';
+const SOCIALS_KEY = 'tick3t.connected.socials';
 
 // ── Organizer metadata ────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ export interface OrganizerMeta {
   color: string;
   eventCount: number;
   followerCount: number;
+  mutuals: { instagram: string[]; twitter: string[] };
 }
 
 export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
@@ -27,6 +29,10 @@ export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
     color: '#6366F1',
     eventCount: 12,
     followerCount: 4800,
+    mutuals: {
+      instagram: ['@dj_miami_life', '@bass_addict', '@neon_rave_sg'],
+      twitter: ['@edm_world', '@miami_nights'],
+    },
   },
   'Neon Collective': {
     id: 'neon-collective',
@@ -35,6 +41,10 @@ export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
     color: '#EC4899',
     eventCount: 7,
     followerCount: 2100,
+    mutuals: {
+      instagram: ['@art_gallery_sg', '@culture_hopper'],
+      twitter: ['@artsy_tweets'],
+    },
   },
   'TechSV Events': {
     id: 'techsv-events',
@@ -43,6 +53,10 @@ export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
     color: '#06B6D4',
     eventCount: 19,
     followerCount: 6300,
+    mutuals: {
+      instagram: ['@startup_grind', '@vc_insider', '@techfounder_sg'],
+      twitter: ['@techcrunch_fan', '@yc_alumni', '@founders_daily'],
+    },
   },
   'GameLA Productions': {
     id: 'gamela-productions',
@@ -51,6 +65,10 @@ export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
     color: '#22C55E',
     eventCount: 8,
     followerCount: 3700,
+    mutuals: {
+      instagram: ['@esports_daily', '@gamedev_life'],
+      twitter: ['@twitch_top', '@esports_central', '@lol_pro_scene'],
+    },
   },
   'Pacific Social': {
     id: 'pacific-social',
@@ -59,6 +77,10 @@ export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
     color: '#F59E0B',
     eventCount: 15,
     followerCount: 5200,
+    mutuals: {
+      instagram: ['@cali_vibes', '@beach_party_sg', '@sunset_sessions'],
+      twitter: ['@surf_culture', '@cali_events'],
+    },
   },
   'NYFW Collective': {
     id: 'nyfw-collective',
@@ -67,6 +89,10 @@ export const MOCK_ORGANIZERS: Record<string, OrganizerMeta> = {
     color: '#A78BFA',
     eventCount: 6,
     followerCount: 8100,
+    mutuals: {
+      instagram: ['@fashion_week_sg', '@runway_daily', '@style_insider', '@mode_mag'],
+      twitter: ['@vogue_updates', '@nyfw_live'],
+    },
   },
 };
 
@@ -254,6 +280,9 @@ interface AppContextValue {
   marketplace: MarketplaceListing[];
   listedTicketIds: Set<string>;
   followedOrganizers: Set<string>;
+  connectedSocials: Record<string, string>;
+  connectSocial: (platform: string, handle: string) => void;
+  disconnectSocial: (platform: string) => void;
   purchaseTicket: (event: Event, tierId: string, quantity: number) => Promise<PurchasedTicket>;
   purchaseMarketplaceTicket: (listing: MarketplaceListing) => Promise<PurchasedTicket>;
   getTicketById: (id: string) => PurchasedTicket | undefined;
@@ -275,6 +304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [marketplace, setMarketplace] = useState<MarketplaceListing[]>(INITIAL_MARKETPLACE);
   const [listedTicketIds, setListedTicketIds] = useState<Set<string>>(new Set());
   const [followedOrganizers, setFollowedOrganizers] = useState<Set<string>>(new Set());
+  const [connectedSocials, setConnectedSocials] = useState<Record<string, string>>({});
   const [user, setUser] = useState<User>({
     id: '1',
     name: 'Guest User',
@@ -304,6 +334,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(FOLLOWING_KEY).then(raw => {
       if (raw) {
         try { setFollowedOrganizers(new Set(JSON.parse(raw))); } catch { /* ignore */ }
+      }
+    });
+    AsyncStorage.getItem(SOCIALS_KEY).then(raw => {
+      if (raw) {
+        try { setConnectedSocials(JSON.parse(raw)); } catch { /* ignore */ }
       }
     });
   }, []);
@@ -431,6 +466,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getOrganizerEvents = useCallback((organizerName: string) =>
     MOCK_EVENTS.filter(e => e.organizer === organizerName), []);
 
+  const connectSocial = useCallback((platform: string, handle: string) => {
+    setConnectedSocials(prev => {
+      const next = { ...prev, [platform]: handle };
+      AsyncStorage.setItem(SOCIALS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const disconnectSocial = useCallback((platform: string) => {
+    setConnectedSocials(prev => {
+      const next = { ...prev };
+      delete next[platform];
+      AsyncStorage.setItem(SOCIALS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const toggleFollowOrganizer = useCallback((organizerName: string) => {
     setFollowedOrganizers(prev => {
       const next = new Set(prev);
@@ -452,6 +504,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       events: MOCK_EVENTS, tickets, user, marketplace, listedTicketIds, followedOrganizers,
+      connectedSocials, connectSocial, disconnectSocial,
       purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, getOrganizerEvents,
       updateUser, addMarketplaceListing, cancelListing, transferTicket, toggleFollowOrganizer,
     }}>
