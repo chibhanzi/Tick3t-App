@@ -9,7 +9,7 @@ import { useTheme } from '@/context/ThemeContext';
 const { height: SCREEN_H } = Dimensions.get('window');
 
 const CATEGORIES = ['Music Festival', 'Art & Culture', 'Tech & Networking', 'Gaming', 'Fashion', 'Beach Party'];
-const DATE_OPTIONS = ['Any time', 'This week', 'This month', 'Next 3 months'];
+const DATE_OPTIONS = ['Any time', 'Today', 'This week', 'This weekend', 'This month', 'Next 3 months'];
 const CITIES = ['Miami', 'New York', 'Los Angeles', 'San Jose', 'Malibu'];
 
 export interface FilterState {

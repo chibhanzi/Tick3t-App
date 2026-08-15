@@ -36,8 +36,8 @@ export type MarketplaceListing = {
 const MOCK_EVENTS: Event[] = [
   {
     id: '1',
-    title: 'Bass Drop Festival 2024',
-    date: 'March 15, 2024',
+    title: 'Bass Drop Festival 2026',
+    date: 'August 15, 2026',
     time: '9:00 PM',
     location: 'Miami Beach Arena',
     fullAddress: '1901 Biscayne Blvd, Miami, FL 33132',
@@ -62,7 +62,7 @@ const MOCK_EVENTS: Event[] = [
   {
     id: '2',
     title: 'Digital Art Rave',
-    date: 'March 22, 2024',
+    date: 'August 16, 2026',
     time: '10:00 PM',
     location: 'Brooklyn Warehouse, NYC',
     fullAddress: '325 Kent Ave, Brooklyn, NY 11249',
@@ -84,7 +84,7 @@ const MOCK_EVENTS: Event[] = [
   {
     id: '3',
     title: 'Tech Innovation Summit',
-    date: 'March 28, 2024',
+    date: 'August 29, 2026',
     time: '9:00 AM',
     location: 'Silicon Valley Convention Center',
     fullAddress: '150 W San Carlos St, San Jose, CA 95113',
@@ -107,7 +107,7 @@ const MOCK_EVENTS: Event[] = [
   {
     id: '4',
     title: 'Gaming Championship',
-    date: 'April 5, 2024',
+    date: 'September 12, 2026',
     time: '2:00 PM',
     location: 'Los Angeles Arena',
     fullAddress: '1111 S Figueroa St, Los Angeles, CA 90015',
@@ -130,7 +130,7 @@ const MOCK_EVENTS: Event[] = [
   {
     id: '5',
     title: 'Beach Party Sunset',
-    date: 'April 12, 2024',
+    date: 'September 27, 2026',
     time: '6:00 PM',
     location: 'Malibu Beach Club',
     fullAddress: '22878 Pacific Coast Hwy, Malibu, CA 90265',
@@ -153,7 +153,7 @@ const MOCK_EVENTS: Event[] = [
   {
     id: '6',
     title: 'Fashion Week Gala',
-    date: 'April 20, 2024',
+    date: 'October 18, 2026',
     time: '8:00 PM',
     location: 'Manhattan Design Center',
     fullAddress: '315 Hudson St, New York, NY 10013',
@@ -176,10 +176,10 @@ const MOCK_EVENTS: Event[] = [
 ];
 
 export const INITIAL_MARKETPLACE: MarketplaceListing[] = [
-  { id: 'm1', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture', tierName: 'General Admission', originalPrice: 48, resalePrice: 110, seller: 'alex_nyc', sellerVerified: true, quantity: 1, listed: '2 hours ago' },
-  { id: 'm2', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'March 22, 2024', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture', tierName: 'General Admission', originalPrice: 48, resalePrice: 95, seller: 'nft_collector', sellerVerified: false, quantity: 2, listed: '5 hours ago' },
-  { id: 'm3', eventId: '1', eventTitle: 'Bass Drop Festival 2024', eventDate: 'March 15, 2024', eventLocation: 'Miami Beach Arena', eventImage: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=400&h=300&fit=crop', eventCategory: 'Music Festival', tierName: 'VIP', originalPrice: 189, resalePrice: 220, seller: 'miami_party', sellerVerified: true, quantity: 1, listed: '1 day ago' },
-  { id: 'm4', eventId: '6', eventTitle: 'Fashion Week Gala', eventDate: 'April 20, 2024', eventLocation: 'Manhattan Design Center', eventImage: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=300&fit=crop', eventCategory: 'Fashion', tierName: 'General', originalPrice: 360, resalePrice: 420, seller: 'style_trader', sellerVerified: true, quantity: 1, listed: '3 days ago' },
+  { id: 'm1', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'August 16, 2026', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture', tierName: 'General Admission', originalPrice: 48, resalePrice: 110, seller: 'alex_nyc', sellerVerified: true, quantity: 1, listed: '2 hours ago' },
+  { id: 'm2', eventId: '2', eventTitle: 'Digital Art Rave', eventDate: 'August 16, 2026', eventLocation: 'Brooklyn Warehouse, NYC', eventImage: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop', eventCategory: 'Art & Culture', tierName: 'General Admission', originalPrice: 48, resalePrice: 95, seller: 'nft_collector', sellerVerified: false, quantity: 2, listed: '5 hours ago' },
+  { id: 'm3', eventId: '1', eventTitle: 'Bass Drop Festival 2026', eventDate: 'August 15, 2026', eventLocation: 'Miami Beach Arena', eventImage: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=400&h=300&fit=crop', eventCategory: 'Music Festival', tierName: 'VIP', originalPrice: 189, resalePrice: 220, seller: 'miami_party', sellerVerified: true, quantity: 1, listed: '1 day ago' },
+  { id: 'm4', eventId: '6', eventTitle: 'Fashion Week Gala', eventDate: 'October 18, 2026', eventLocation: 'Manhattan Design Center', eventImage: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=300&fit=crop', eventCategory: 'Fashion', tierName: 'General', originalPrice: 360, resalePrice: 420, seller: 'style_trader', sellerVerified: true, quantity: 1, listed: '3 days ago' },
 ];
 
 // ── Context interface ─────────────────────────────────────────────────────────

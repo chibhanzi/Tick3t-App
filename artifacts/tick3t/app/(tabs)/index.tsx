@@ -20,9 +20,9 @@ const CARD_W = (SCREEN_WIDTH - 36 - 10) / 2;
 const HERO_SLIDES = [
   {
     id: '1',
-    title: 'Bass Drop Festival 2024',
+    title: 'Bass Drop Festival 2026',
     description: 'The hottest DJs and producers for a night of non-stop dancing under the Miami stars.',
-    date: 'MAR 15, 2024', time: '9:00 PM', venue: 'Miami Beach Arena',
+    date: 'AUG 15, 2026', time: '9:00 PM', venue: 'Miami Beach Arena',
     category: 'Music Festival',
     image: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?w=900&h=700&fit=crop',
   },
@@ -30,7 +30,7 @@ const HERO_SLIDES = [
     id: '3',
     title: 'Tech Innovation Summit',
     description: 'The premier tech conference — founders, investors, and engineers shaping the future.',
-    date: 'MAR 28, 2024', time: '9:00 AM', venue: 'Silicon Valley Convention Center',
+    date: 'AUG 29, 2026', time: '9:00 AM', venue: 'Silicon Valley Convention Center',
     category: 'Tech & Networking',
     image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&h=700&fit=crop',
   },
@@ -38,7 +38,7 @@ const HERO_SLIDES = [
     id: '6',
     title: 'Fashion Week Gala',
     description: 'Runway shows, designer meet-and-greets, and exclusive after-parties in Manhattan.',
-    date: 'APR 20, 2024', time: '8:00 PM', venue: 'Manhattan Design Center',
+    date: 'OCT 18, 2026', time: '8:00 PM', venue: 'Manhattan Design Center',
     category: 'Fashion',
     image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=900&h=700&fit=crop',
   },
@@ -97,6 +97,53 @@ export default function DiscoverScreen() {
     if (activeFilters.categories.length) pool = pool.filter(e => activeFilters.categories.includes(e.category));
     if (activeFilters.minPrice) pool = pool.filter(e => e.price >= Number(activeFilters.minPrice));
     if (activeFilters.maxPrice) pool = pool.filter(e => e.price <= Number(activeFilters.maxPrice));
+    // Date filter
+    if (activeFilters.dateFilter !== 'Any time') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      pool = pool.filter(e => {
+        const parsed = new Date(e.date);
+        if (isNaN(parsed.getTime())) return true;
+        const eventDay = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+        switch (activeFilters.dateFilter) {
+          case 'Today':
+            return eventDay.getTime() === today.getTime();
+          case 'This week': {
+            // End of current week = the coming Sunday (or today if today is Sunday)
+            const dayOfWeek = today.getDay(); // 0=Sun … 6=Sat
+            const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+            const weekEnd = new Date(today);
+            weekEnd.setDate(today.getDate() + daysUntilSunday);
+            return eventDay >= today && eventDay <= weekEnd;
+          }
+          case 'This weekend': {
+            // Saturday and Sunday of the current week.
+            // If today is Sunday (0), Saturday was yesterday (-1 day).
+            // Otherwise, days until Saturday = 6 - dayOfWeek.
+            const dayOfWeek = today.getDay(); // 0=Sun … 6=Sat
+            const daysToSaturday = dayOfWeek === 0 ? -1 : 6 - dayOfWeek;
+            const saturday = new Date(today);
+            saturday.setDate(today.getDate() + daysToSaturday);
+            const sunday = new Date(saturday);
+            sunday.setDate(saturday.getDate() + 1);
+            // Only show dates >= today (yesterday's Saturday is excluded when today is Sunday)
+            return eventDay >= today &&
+              (eventDay.getTime() === saturday.getTime() || eventDay.getTime() === sunday.getTime());
+          }
+          case 'This month':
+            return eventDay.getFullYear() === today.getFullYear() &&
+              eventDay.getMonth() === today.getMonth() &&
+              eventDay >= today;
+          case 'Next 3 months': {
+            const threeMonthsOut = new Date(today);
+            threeMonthsOut.setMonth(today.getMonth() + 3);
+            return eventDay >= today && eventDay <= threeMonthsOut;
+          }
+          default:
+            return true;
+        }
+      });
+    }
     return pool;
   }, [events, searchQuery, activeCategory, activeFilters]);
 
@@ -208,6 +255,21 @@ export default function DiscoverScreen() {
                 <Text style={{ color: C.primary, fontSize: 13, fontWeight: '600' }}>Clear ✕</Text>
               </Pressable>
             </View>
+            {activeFilters.dateFilter !== 'Any time' && (
+              <View style={styles.dateChipRow}>
+                <Text style={[styles.dateChipLabel, { color: C.textMuted }]}>Showing:</Text>
+                <View style={[styles.dateChip, { backgroundColor: C.primary + '22', borderColor: C.primary + '55' }]}>
+                  <Ionicons name="calendar-outline" size={12} color={C.primary} />
+                  <Text style={[styles.dateChipText, { color: C.primary }]}>{activeFilters.dateFilter}</Text>
+                  <Pressable
+                    onPress={() => setActiveFilters(f => ({ ...f, dateFilter: 'Any time' }))}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close" size={12} color={C.primary} />
+                  </Pressable>
+                </View>
+              </View>
+            )}
             {searchResults.length === 0 ? (
               <View style={styles.emptyBox}>
                 <Ionicons name="search-outline" size={48} color={C.textMuted} />
@@ -485,7 +547,11 @@ const styles = StyleSheet.create({
   slideCounter: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontFamily: 'monospace', marginLeft: 4 },
 
   section: { paddingHorizontal: 18, paddingTop: 26 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  dateChipRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  dateChipLabel: { fontSize: 13 },
+  dateChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
+  dateChipText: { fontSize: 13, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
   limitedPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
   limitedText: { fontSize: 10, fontWeight: '700' },
