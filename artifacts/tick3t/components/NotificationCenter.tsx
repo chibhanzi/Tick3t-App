@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Modal,
   KeyboardAvoidingView, Platform, Animated,
@@ -47,8 +47,6 @@ function groupNotifications(notifs: AppNotification[]): NotifSection[] {
     if (!map.has(label)) map.set(label, []);
     map.get(label)!.push(n);
   }
-  // Sort rows within each section newest-first, then sort sections by their
-  // most-recent notification timestamp, with "Older" always last.
   return [...map.entries()]
     .map(([title, data]) => ({
       title,
@@ -151,6 +149,59 @@ function NotifRow({
   );
 }
 
+// ── Undo Toast ────────────────────────────────────────────────────────────────
+
+const UNDO_DURATION_MS = 3000;
+
+function UndoToast({
+  count,
+  isAllCleared,
+  onUndo,
+  visible: toastVisible,
+}: {
+  count: number;
+  isAllCleared: boolean;
+  onUndo: () => void;
+  visible: boolean;
+}) {
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: toastVisible ? 1 : 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start();
+  }, [toastVisible]);
+
+  const translateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [80, 0],
+  });
+  const opacity = slideAnim.interpolate({
+    inputRange: [0, 0.6, 1],
+    outputRange: [0, 1, 1],
+  });
+
+  const label = isAllCleared
+    ? 'All notifications cleared'
+    : count === 1
+    ? 'Notification dismissed'
+    : `${count} notifications dismissed`;
+
+  return (
+    <Animated.View
+      style={[styles.toast, { opacity, transform: [{ translateY }], pointerEvents: toastVisible ? 'auto' : 'none' }]}
+    >
+      <Text style={styles.toastLabel}>{label}</Text>
+      <Pressable onPress={onUndo} style={styles.undoBtn} hitSlop={8}>
+        <Text style={styles.undoBtnText}>Undo</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 // ── Main sheet ────────────────────────────────────────────────────────────────
 
 interface Props { visible: boolean; onClose: () => void }
@@ -159,16 +210,85 @@ export default function NotificationCenter({ visible, onClose }: Props) {
   const { colors: C } = useTheme();
   const router = useRouter();
   const {
-    notifications, markAllRead, markNotifRead, dismissNotif, dismissAllNotifs, notifPrefs,
+    notifications, markAllRead, markNotifRead, dismissNotif, notifPrefs,
   } = useApp();
 
-  // Filter by prefs
+  // ── Pending-dismissal (undo) state ────────────────────────────────────────
+  const [pendingDismissals, setPendingDismissals] = useState<AppNotification[]>([]);
+  const [isAllCleared, setIsAllCleared] = useState(false);
+  const pendingRef = useRef<AppNotification[]>([]);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissNotifRef = useRef(dismissNotif);
+  useEffect(() => { dismissNotifRef.current = dismissNotif; }, [dismissNotif]);
+
+  // Commit pending dismissals to context (writes AsyncStorage)
+  const commitPending = useCallback(() => {
+    const toCommit = pendingRef.current;
+    toCommit.forEach(n => dismissNotifRef.current(n.id));
+    pendingRef.current = [];
+    setPendingDismissals([]);
+    setIsAllCleared(false);
+  }, []);
+
+  // Schedule auto-commit
+  const scheduleCommit = useCallback((pending: AppNotification[]) => {
+    pendingRef.current = pending;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = setTimeout(commitPending, UNDO_DURATION_MS);
+  }, [commitPending]);
+
+  // When modal closes, commit any outstanding dismissals immediately
+  useEffect(() => {
+    if (!visible && pendingRef.current.length > 0) {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      commitPending();
+    }
+  }, [visible, commitPending]);
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  }, []);
+
+  // Handle single dismiss — optimistically hide, schedule commit
+  const handleDismiss = useCallback((id: string) => {
+    const notif = notifications.find(n => n.id === id);
+    if (!notif) return;
+    const newPending = [...pendingRef.current, notif];
+    setPendingDismissals(newPending);
+    setIsAllCleared(false);
+    scheduleCommit(newPending);
+  }, [notifications, scheduleCommit]);
+
+  // Handle clear all — queues every notification in context (matching original
+  // dismissAllNotifs behaviour), not just the preference-visible subset.
+  const handleClearAll = useCallback(() => {
+    if (notifications.length === 0) return;
+    const combined = [...notifications];
+    setPendingDismissals(combined);
+    setIsAllCleared(true);
+    scheduleCommit(combined);
+  }, [notifications, scheduleCommit]);
+
+  // Handle undo
+  const handleUndo = useCallback(() => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = null;
+    pendingRef.current = [];
+    setPendingDismissals([]);
+    setIsAllCleared(false);
+  }, []);
+
+  // ── Derived visible list (excludes pending dismissals) ────────────────────
+  const pendingIdSet = new Set(pendingDismissals.map(n => n.id));
   const visible_notifs = notifications.filter(n => {
     const pref = TYPE_TO_PREF[n.type] as keyof typeof notifPrefs;
-    return notifPrefs[pref] !== false;
+    return notifPrefs[pref] !== false && !pendingIdSet.has(n.id);
   });
 
   const unreadCount = visible_notifs.filter(n => !n.read).length;
+  // Also count pending unread for the badge — pending are temporarily hidden
+  const showClearAll = visible_notifs.length > 0 || pendingDismissals.length > 0;
 
   const handleRow = (n: AppNotification) => {
     markNotifRead(n.id);
@@ -177,6 +297,8 @@ export default function NotificationCenter({ visible, onClose }: Props) {
       setTimeout(() => router.push(n.deepLink as never), 200);
     }
   };
+
+  const toastVisible = pendingDismissals.length > 0;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -205,8 +327,8 @@ export default function NotificationCenter({ visible, onClose }: Props) {
                   <Text style={[styles.headerBtn, { color: C.primary }]}>Mark all read</Text>
                 </Pressable>
               )}
-              {visible_notifs.length > 0 && (
-                <Pressable onPress={() => dismissAllNotifs()}>
+              {showClearAll && (
+                <Pressable onPress={handleClearAll}>
                   <Text style={[styles.headerBtn, { color: C.textSecondary }]}>Clear all</Text>
                 </Pressable>
               )}
@@ -220,14 +342,23 @@ export default function NotificationCenter({ visible, onClose }: Props) {
           <ScrollView
             style={{ maxHeight: 520 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: toastVisible ? 64 : 24 }}
           >
-            {visible_notifs.length === 0 ? (
+            {visible_notifs.length === 0 && !toastVisible ? (
               <View style={styles.emptyState}>
                 <Ionicons name="notifications-off-outline" size={52} color={C.textMuted} />
                 <Text style={[styles.emptyTitle, { color: C.text }]}>All caught up!</Text>
                 <Text style={[styles.emptyBody, { color: C.textMuted }]}>
                   No notifications right now. We'll let you know when something happens.
+                </Text>
+              </View>
+            ) : visible_notifs.length === 0 && toastVisible ? (
+              // Empty placeholder while undo window is open
+              <View style={styles.emptyState}>
+                <Ionicons name="checkmark-circle-outline" size={52} color={C.textMuted} />
+                <Text style={[styles.emptyTitle, { color: C.text }]}>Notifications cleared</Text>
+                <Text style={[styles.emptyBody, { color: C.textMuted }]}>
+                  Tap Undo below to restore them.
                 </Text>
               </View>
             ) : (
@@ -243,7 +374,7 @@ export default function NotificationCenter({ visible, onClose }: Props) {
                           key={n.id}
                           n={n}
                           onPress={() => handleRow(n)}
-                          onDismiss={dismissNotif}
+                          onDismiss={handleDismiss}
                         />
                       ))}
                     </View>
@@ -252,6 +383,14 @@ export default function NotificationCenter({ visible, onClose }: Props) {
               </View>
             )}
           </ScrollView>
+
+          {/* Undo Toast */}
+          <UndoToast
+            count={pendingDismissals.length}
+            isAllCleared={isAllCleared}
+            onUndo={handleUndo}
+            visible={toastVisible}
+          />
         </View>
       </KeyboardAvoidingView>
       </GestureHandlerRootView>
@@ -302,4 +441,40 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 48, gap: 10 },
   emptyTitle: { fontSize: 17, fontWeight: '800' },
   emptyBody:  { fontSize: 13, textAlign: 'center', maxWidth: 240, lineHeight: 19 },
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  toast: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  toastLabel: {
+    color: '#FFFFFFCC',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  undoBtn: {
+    marginLeft: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  undoBtnText: {
+    color: '#6366F1',
+    fontSize: 14,
+    fontWeight: '800',
+  },
 });
