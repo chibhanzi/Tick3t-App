@@ -210,7 +210,7 @@ export default function NotificationCenter({ visible, onClose }: Props) {
   const { colors: C } = useTheme();
   const router = useRouter();
   const {
-    notifications, markAllRead, markNotifRead, dismissNotif, notifPrefs,
+    notifications, markAllRead, markNotifRead, dismissNotif, notifPrefs, setPendingDismissedIds,
   } = useApp();
 
   // ── Pending-dismissal (undo) state ────────────────────────────────────────
@@ -220,6 +220,11 @@ export default function NotificationCenter({ visible, onClose }: Props) {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dismissNotifRef = useRef(dismissNotif);
   useEffect(() => { dismissNotifRef.current = dismissNotif; }, [dismissNotif]);
+
+  // Keep context badge in sync with optimistically-hidden notifications
+  useEffect(() => {
+    setPendingDismissedIds(new Set(pendingDismissals.map(n => n.id)));
+  }, [pendingDismissals, setPendingDismissedIds]);
 
   // Commit pending dismissals to context (writes AsyncStorage)
   const commitPending = useCallback(() => {

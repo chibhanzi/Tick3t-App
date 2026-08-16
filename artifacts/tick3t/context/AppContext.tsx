@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Event, PurchasedTicket, User, AppNotification, NotifPrefs } from '@/types';
+import { Event, PurchasedTicket, User, AppNotification, NotifPrefs, NotificationType } from '@/types';
 
 const TICKETS_KEY = 'tick3t.vault.tickets';
 const USER_KEY = 'tick3t.mock-auth.user';
@@ -17,6 +17,14 @@ const NOTIF_PREFS_KEY = 'tick3t.notifications.prefs';
 const NOTIF_DISMISSED_KEY = 'tick3t.notifications.dismissedIds';
 
 const DEFAULT_NOTIF_PREFS: NotifPrefs = { events: true, resale: true, transfers: true, marketing: false };
+
+const TYPE_TO_PREF: Record<NotificationType, keyof NotifPrefs> = {
+  event_reminder:        'events',
+  saved_almost_sold_out: 'events',
+  offer_received:        'resale',
+  listing_sold:          'resale',
+  transfer_received:     'transfers',
+};
 
 // Seed notifications — always shown; read state persisted separately
 const SEED_NOTIFICATIONS: AppNotification[] = [
@@ -393,6 +401,7 @@ interface AppContextValue {
   dismissAllNotifs: () => void;
   notifPrefs: NotifPrefs;
   setNotifPrefs: (prefs: Partial<NotifPrefs>) => void;
+  setPendingDismissedIds: (ids: Set<string>) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -412,6 +421,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>(SEED_NOTIFICATIONS);
   const [dismissedNotifIds, setDismissedNotifIds] = useState<Set<string>>(new Set());
   const [notifPrefs, setNotifPrefsState] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
+  // IDs optimistically hidden during the undo window in NotificationCenter
+  const [pendingDismissedIds, setPendingDismissedIds] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<User>({
     id: '1',
     name: 'Guest User',
@@ -735,7 +746,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(
+    n => !n.read
+      && notifPrefs[TYPE_TO_PREF[n.type]] !== false
+      && !pendingDismissedIds.has(n.id),
+  ).length;
 
   return (
     <AppContext.Provider value={{
@@ -745,7 +760,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getWaitlistCount, getPoolData,
       purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, getOrganizerEvents,
       updateUser, addMarketplaceListing, cancelListing, transferTicket, toggleFollowOrganizer,
-      notifications, unreadCount, markAllRead, markNotifRead, dismissNotif, dismissAllNotifs, notifPrefs, setNotifPrefs,
+      notifications, unreadCount, markAllRead, markNotifRead, dismissNotif, dismissAllNotifs, notifPrefs, setNotifPrefs, setPendingDismissedIds,
     }}>
       {children}
     </AppContext.Provider>
