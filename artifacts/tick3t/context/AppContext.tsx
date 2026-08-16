@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Event, PurchasedTicket, User } from '@/types';
+import { Event, PurchasedTicket, User, AppNotification, NotifPrefs } from '@/types';
 
 const TICKETS_KEY = 'tick3t.vault.tickets';
 const USER_KEY = 'tick3t.mock-auth.user';
@@ -12,6 +12,62 @@ const WAITLIST_KEY = 'tick3t.waitlist.events';
 const WATCHLIST_KEY = 'tick3t.watchlist.events';
 const POOL_KEY = 'tick3t.pool.events';
 const PRIMARY_SOCIAL_KEY = 'tick3t.primary.social';
+const NOTIF_READ_KEY = 'tick3t.notifications.readIds';
+const NOTIF_PREFS_KEY = 'tick3t.notifications.prefs';
+
+const DEFAULT_NOTIF_PREFS: NotifPrefs = { events: true, resale: true, transfers: true, marketing: false };
+
+// Seed notifications — always shown; read state persisted separately
+const SEED_NOTIFICATIONS: AppNotification[] = [
+  {
+    id: 'n1', type: 'event_reminder',
+    title: 'Bass Drop Festival starts tonight! 🎵',
+    body: 'Your ticket is ready. Doors open at 9:00 PM at Miami Beach Arena — have a great night!',
+    timestamp: '2026-08-15T08:00:00.000Z', read: false, deepLink: '/event/1',
+  },
+  {
+    id: 'n2', type: 'saved_almost_sold_out',
+    title: 'Beach Party Sunset is almost gone',
+    body: 'Only 50 tickets remaining for Beach Party Sunset, an event you saved. Grab yours now.',
+    timestamp: '2026-08-15T05:00:00.000Z', read: false, deepLink: '/event/5',
+  },
+  {
+    id: 'n3', type: 'offer_received',
+    title: 'New offer on your VIP listing',
+    body: 'Someone offered $220 for your VIP ticket to Bass Drop Festival 2026.',
+    timestamp: '2026-08-14T10:00:00.000Z', read: false, deepLink: '/(tabs)/marketplace',
+  },
+  {
+    id: 'n4', type: 'listing_sold',
+    title: 'Your ticket sold for $420 🎉',
+    body: 'Your Fashion Week Gala General ticket was sold. Funds released after the event.',
+    timestamp: '2026-08-13T14:30:00.000Z', read: true, deepLink: '/(tabs)/vault',
+  },
+  {
+    id: 'n5', type: 'transfer_received',
+    title: 'Ticket received from Alex Chen',
+    body: 'Alex Chen transferred a Gaming Championship General ticket to your vault.',
+    timestamp: '2026-08-12T09:15:00.000Z', read: true, deepLink: '/(tabs)/vault',
+  },
+  {
+    id: 'n6', type: 'event_reminder',
+    title: 'Tech Innovation Summit in 2 weeks',
+    body: "Don't forget — Tech Innovation Summit is on Aug 29. Check in online to skip the queue.",
+    timestamp: '2026-08-11T08:00:00.000Z', read: true, deepLink: '/event/3',
+  },
+  {
+    id: 'n7', type: 'offer_received',
+    title: 'Offer on your Digital Art Rave listing',
+    body: 'You received a $95 offer for your General Admission ticket to Digital Art Rave.',
+    timestamp: '2026-08-10T16:45:00.000Z', read: true, deepLink: '/(tabs)/marketplace',
+  },
+  {
+    id: 'n8', type: 'saved_almost_sold_out',
+    title: 'Fashion Week Gala: only 25 spots left',
+    body: 'This exclusive event you saved is nearly sold out. Only 25 tickets remain.',
+    timestamp: '2026-08-09T11:00:00.000Z', read: true, deepLink: '/event/6',
+  },
+];
 
 // Waitlist seed counts (pre-populated so social proof is immediate)
 const MOCK_WAITLIST_COUNTS: Record<string, number> = { '2': 287 };
@@ -327,6 +383,13 @@ interface AppContextValue {
   cancelListing: (listingId: string) => void;
   transferTicket: (ticketId: string) => Promise<void>;
   toggleFollowOrganizer: (organizerName: string) => void;
+  // Notifications
+  notifications: AppNotification[];
+  unreadCount: number;
+  markAllRead: () => void;
+  markNotifRead: (id: string) => void;
+  notifPrefs: NotifPrefs;
+  setNotifPrefs: (prefs: Partial<NotifPrefs>) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -343,6 +406,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [joinedWaitlist, setJoinedWaitlist] = useState<Set<string>>(new Set());
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [joinedPools, setJoinedPools] = useState<Set<string>>(new Set());
+  const [notifications, setNotifications] = useState<AppNotification[]>(SEED_NOTIFICATIONS);
+  const [notifPrefs, setNotifPrefsState] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
   const [user, setUser] = useState<User>({
     id: '1',
     name: 'Guest User',
@@ -388,6 +453,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     AsyncStorage.getItem(PRIMARY_SOCIAL_KEY).then(raw => {
       if (raw) { try { setPrimarySocialState(JSON.parse(raw)); } catch { /* ignore */ } }
+    });
+    // Restore notification read state (we always show seed data, just persist which are read)
+    AsyncStorage.getItem(NOTIF_READ_KEY).then(raw => {
+      if (raw) {
+        try {
+          const readIds: string[] = JSON.parse(raw);
+          if (readIds.length) {
+            setNotifications(prev => prev.map(n => readIds.includes(n.id) ? { ...n, read: true } : n));
+          }
+        } catch { /* ignore */ }
+      }
+    });
+    AsyncStorage.getItem(NOTIF_PREFS_KEY).then(raw => {
+      if (raw) { try { setNotifPrefsState({ ...DEFAULT_NOTIF_PREFS, ...JSON.parse(raw) }); } catch { /* ignore */ } }
     });
   }, []);
 
@@ -577,6 +656,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { ...base, raised: base.raised + extra, contributors: base.contributors + extra };
   }, [joinedPools]);
 
+  const markAllRead = useCallback(() => {
+    setNotifications(prev => {
+      const next = prev.map(n => ({ ...n, read: true }));
+      AsyncStorage.setItem(NOTIF_READ_KEY, JSON.stringify(next.map(n => n.id)));
+      return next;
+    });
+  }, []);
+
+  const markNotifRead = useCallback((id: string) => {
+    setNotifications(prev => {
+      const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      AsyncStorage.setItem(NOTIF_READ_KEY, JSON.stringify(next.filter(n => n.read).map(n => n.id)));
+      return next;
+    });
+  }, []);
+
+  const setNotifPrefs = useCallback((prefs: Partial<NotifPrefs>) => {
+    setNotifPrefsState(prev => {
+      const next = { ...prev, ...prefs };
+      AsyncStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const toggleFollowOrganizer = useCallback((organizerName: string) => {
     setFollowedOrganizers(prev => {
       const next = new Set(prev);
@@ -595,6 +698,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   return (
     <AppContext.Provider value={{
       events: MOCK_EVENTS, tickets, user, marketplace, listedTicketIds, followedOrganizers,
@@ -603,6 +708,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getWaitlistCount, getPoolData,
       purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, getOrganizerEvents,
       updateUser, addMarketplaceListing, cancelListing, transferTicket, toggleFollowOrganizer,
+      notifications, unreadCount, markAllRead, markNotifRead, notifPrefs, setNotifPrefs,
     }}>
       {children}
     </AppContext.Provider>

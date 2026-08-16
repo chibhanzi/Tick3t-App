@@ -79,3 +79,27 @@ export interface User {
   role: 'user' | 'organizer';
   isVerified: boolean;
 }
+
+export type NotificationType =
+  | 'event_reminder'
+  | 'offer_received'
+  | 'listing_sold'
+  | 'transfer_received'
+  | 'saved_almost_sold_out';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  timestamp: string; // ISO string
+  read: boolean;
+  deepLink?: string; // expo-router path
+}
+
+export interface NotifPrefs {
+  events: boolean;      // event_reminder, saved_almost_sold_out
+  resale: boolean;      // offer_received, listing_sold
+  transfers: boolean;   // transfer_received
+  marketing: boolean;   // future marketing types
+}

@@ -90,7 +90,7 @@ function todayDate(): Date {
 export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { user: authUser, signOut, isAuthenticated } = useAuth();
-  const { events, tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial, getOrganizerEvents, primarySocial, setPrimarySocial } = useApp();
+  const { events, tickets, updateUser, user, marketplace, listedTicketIds, followedOrganizers, toggleFollowOrganizer, connectedSocials, connectSocial, disconnectSocial, getOrganizerEvents, primarySocial, setPrimarySocial, notifPrefs, setNotifPrefs } = useApp();
   const router = useRouter();
 
   // Profile edit
@@ -121,11 +121,7 @@ export default function ProfileScreen() {
   const [walletAddress, setWalletAddress] = useState('');
   const [walletSaved, setWalletSaved] = useState(false);
 
-  // Notifications
-  const [notifEvents, setNotifEvents] = useState(true);
-  const [notifResale, setNotifResale] = useState(true);
-  const [notifTransfers, setNotifTransfers] = useState(true);
-  const [notifMarketing, setNotifMarketing] = useState(false);
+  // Notifications — prefs live in AppContext for cross-screen access
 
   // Security
   const [twoFA, setTwoFA] = useState(false);
@@ -203,7 +199,7 @@ export default function ProfileScreen() {
     },
     {
       icon: 'notifications-outline' as const, label: 'Notifications',
-      value: [notifEvents, notifResale, notifTransfers, notifMarketing].filter(Boolean).length + ' active',
+      value: Object.values(notifPrefs).filter(Boolean).length + ' active',
       onPress: () => setNotifModal(true),
     },
     {
@@ -822,22 +818,22 @@ export default function ProfileScreen() {
 
       {/* ── Notifications Modal ──────────────────────────────────── */}
       <BottomSheet visible={notifModal} onClose={() => setNotifModal(false)} title="Notifications">
-        {[
-          { label: 'Upcoming events', desc: 'Reminders before your events', value: notifEvents, setter: setNotifEvents },
-          { label: 'Resale activity', desc: 'When your listings get offers or sell', value: notifResale, setter: setNotifResale },
-          { label: 'Ticket transfers', desc: 'When tickets are sent or received', value: notifTransfers, setter: setNotifTransfers },
-          { label: 'Promotions', desc: 'New events, deals, and announcements', value: notifMarketing, setter: setNotifMarketing },
-        ].map((item, i) => (
+        {([
+          { label: 'Upcoming events', desc: 'Reminders before your events', key: 'events' as const },
+          { label: 'Resale activity', desc: 'When your listings get offers or sell', key: 'resale' as const },
+          { label: 'Ticket transfers', desc: 'When tickets are sent or received', key: 'transfers' as const },
+          { label: 'Promotions', desc: 'New events, deals, and announcements', key: 'marketing' as const },
+        ]).map((item, i) => (
           <View key={i} style={[styles.settingRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.settingLabel, { color: C.text }]}>{item.label}</Text>
               <Text style={[styles.settingDesc, { color: C.textMuted }]}>{item.desc}</Text>
             </View>
             <Switch
-              value={item.value}
-              onValueChange={item.setter}
+              value={notifPrefs[item.key]}
+              onValueChange={v => setNotifPrefs({ [item.key]: v })}
               trackColor={{ false: C.border, true: C.primary + '88' }}
-              thumbColor={item.value ? C.primary : C.textMuted}
+              thumbColor={notifPrefs[item.key] ? C.primary : C.textMuted}
             />
           </View>
         ))}

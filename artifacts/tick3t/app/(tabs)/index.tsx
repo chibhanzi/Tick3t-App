@@ -12,6 +12,7 @@ import { useApp } from '@/context/AppContext';
 import EventCard from '@/components/EventCard';
 import Logo from '@/components/Logo';
 import FilterModal, { FilterState } from '@/components/FilterModal';
+import NotificationCenter from '@/components/NotificationCenter';
 import { EventCategory } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -56,9 +57,10 @@ const DEFAULT_FILTERS: FilterState = { location: '', categories: [], dateFilter:
 export default function DiscoverScreen() {
   const { colors: C, isDark } = useTheme();
   const router = useRouter();
-  const { events, watchlist, toggleWatchlist } = useApp();
+  const { events, watchlist, toggleWatchlist, unreadCount } = useApp();
   const savedCount = watchlist.size;
   const [showingSaved, setShowingSaved] = useState(false);
+  const [notifVisible, setNotifVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -462,7 +464,19 @@ export default function DiscoverScreen() {
           <Logo size="md" light />
         </View>
         <View style={styles.stickySearchRow}>
-          <View style={styles.stickySearchBar}>
+          {/* Bell */}
+          <Pressable
+            style={[styles.stickyBellBtn, unreadCount > 0 && { borderColor: 'rgba(239,68,68,0.5)' }]}
+            onPress={() => setNotifVisible(true)}
+          >
+            <Ionicons name={unreadCount > 0 ? 'notifications' : 'notifications-outline'} size={18} color="#fff" />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </Pressable>
+          <View style={[styles.stickySearchBar, { flex: 1 }]}>
             <Ionicons name="search" size={16} color="rgba(255,255,255,0.55)" style={{ marginRight: 8 }} />
             <TextInput
               style={styles.stickySearchInput}
@@ -543,6 +557,9 @@ export default function DiscoverScreen() {
         onApply={setActiveFilters}
         activeFilters={activeFilters}
       />
+
+      {/* Notification center */}
+      <NotificationCenter visible={notifVisible} onClose={() => setNotifVisible(false)} />
     </View>
   );
 }
@@ -563,6 +580,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   stickySearchInput: { flex: 1, fontSize: 14, paddingVertical: 0, color: '#fff' },
+  stickyBellBtn: {
+    width: 34, height: 34, borderRadius: 17, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16,
+    borderRadius: 8, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
   stickyHeartBtn: {
     width: 42, height: 42, borderRadius: 12, borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.12)',
