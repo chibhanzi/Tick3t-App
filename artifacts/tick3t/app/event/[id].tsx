@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
-  View, Text, Image, ScrollView, StyleSheet, Pressable, Alert,
+  View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,15 @@ export default function EventDetailScreen() {
   const [selectedTier, setSelectedTier] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [buying, setBuying] = useState(false);
+
+  // Heart animation
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const pulsHeart = useCallback(() => {
+    Animated.sequence([
+      Animated.spring(heartScale, { toValue: 1.5, useNativeDriver: true, speed: 30, bounciness: 14 }),
+      Animated.spring(heartScale, { toValue: 1,   useNativeDriver: true, speed: 20, bounciness: 6  }),
+    ]).start();
+  }, [heartScale]);
 
   if (!event) {
     return (
@@ -122,8 +131,10 @@ export default function EventDetailScreen() {
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backText}>← Back</Text>
           </Pressable>
-          <Pressable style={styles.heartBtn} onPress={() => toggleWatchlist(event.id)}>
-            <Ionicons name={isWatched ? 'heart' : 'heart-outline'} size={22} color={isWatched ? '#F87171' : '#fff'} />
+          <Pressable style={styles.heartBtn} onPress={() => { pulsHeart(); toggleWatchlist(event.id); }}>
+            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+              <Ionicons name={isWatched ? 'heart' : 'heart-outline'} size={22} color={isWatched ? '#F87171' : '#fff'} />
+            </Animated.View>
           </Pressable>
           <View style={styles.heroContent}>
             <View style={styles.heroBadges}>

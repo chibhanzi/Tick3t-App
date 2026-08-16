@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, Text, Image, Pressable, StyleSheet, Dimensions, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
@@ -23,8 +23,18 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
   const almostGone = !soldOut && availPct >= 70;
   const trending = event.attendees > 1000;
 
+  // Heart animation
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const pulsHeart = useCallback(() => {
+    Animated.sequence([
+      Animated.spring(heartScale, { toValue: 1.4, useNativeDriver: true, speed: 30, bounciness: 12 }),
+      Animated.spring(heartScale, { toValue: 1,   useNativeDriver: true, speed: 20, bounciness: 6  }),
+    ]).start();
+  }, [heartScale]);
+
   // Following & social proof
-  const { followedOrganizers, connectedSocials, getWaitlistCount } = useApp();
+  const { followedOrganizers, connectedSocials, getWaitlistCount, watchlist, toggleWatchlist } = useApp();
+  const isSaved = watchlist.has(event.id);
   const waitlistCount = getWaitlistCount(event.id);
   const org = MOCK_ORGANIZERS[event.organizer];
   const isFollowing = followedOrganizers.has(event.organizer);
@@ -45,6 +55,16 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
       <Pressable style={styles.featured} onPress={() => router.push(`/event/${event.id}`)}>
         <Image source={{ uri: event.image }} style={StyleSheet.absoluteFillObject} />
         <View style={styles.featuredOverlay} />
+        {/* Heart save button */}
+        <Pressable
+          style={styles.featuredHeart}
+          onPress={() => { pulsHeart(); toggleWatchlist(event.id); }}
+          hitSlop={8}
+        >
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Ionicons name={isSaved ? 'heart' : 'heart-outline'} size={22} color={isSaved ? '#F87171' : 'rgba(255,255,255,0.85)'} />
+          </Animated.View>
+        </Pressable>
         <View style={styles.featuredContent}>
           <View style={styles.badgeRow}>
             <View style={[styles.badge, { backgroundColor: 'rgba(22,163,74,0.9)' }]}>
@@ -87,7 +107,7 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
   if (variant === 'grid') {
     return (
       <Pressable
-        style={[styles.gridCard, { backgroundColor: C.card, borderColor: C.border }]}
+        style={[styles.gridCard, { backgroundColor: C.card, borderColor: isSaved ? '#F8717155' : C.border }]}
         onPress={() => router.push(`/event/${event.id}`)}
       >
         <View style={styles.gridImageWrap}>
@@ -107,6 +127,16 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
               </View>
             )}
           </View>
+          {/* Heart save button */}
+          <Pressable
+            style={styles.gridHeart}
+            onPress={() => { pulsHeart(); toggleWatchlist(event.id); }}
+            hitSlop={6}
+          >
+            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+              <Ionicons name={isSaved ? 'heart' : 'heart-outline'} size={16} color={isSaved ? '#F87171' : 'rgba(255,255,255,0.85)'} />
+            </Animated.View>
+          </Pressable>
           {soldOut && (
             <View style={styles.soldOutOverlay}>
               <View style={styles.soldOutBadge}>
@@ -149,10 +179,22 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
   // ── LIST ──────────────────────────────────────────────────────────────────
   return (
     <Pressable
-      style={[styles.listCard, { backgroundColor: C.card, borderColor: C.border }]}
+      style={[styles.listCard, { backgroundColor: C.card, borderColor: isSaved ? '#F8717155' : C.border }]}
       onPress={() => router.push(`/event/${event.id}`)}
     >
-      <Image source={{ uri: event.image }} style={styles.listImage} />
+      <View style={{ position: 'relative' }}>
+        <Image source={{ uri: event.image }} style={styles.listImage} />
+        {/* Heart save button */}
+        <Pressable
+          style={styles.listHeart}
+          onPress={() => { pulsHeart(); toggleWatchlist(event.id); }}
+          hitSlop={6}
+        >
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Ionicons name={isSaved ? 'heart' : 'heart-outline'} size={20} color={isSaved ? '#F87171' : 'rgba(255,255,255,0.85)'} />
+          </Animated.View>
+        </Pressable>
+      </View>
       <View style={styles.listBody}>
         <View style={styles.listBadgeRow}>
           <View style={[styles.smallBadge, { backgroundColor: C.primary + '22', borderWidth: 1, borderColor: C.primary + '55' }]}>
@@ -209,6 +251,7 @@ export default function EventCard({ event, variant = 'list' }: EventCardProps) {
   );
 }
 
+
 const styles = StyleSheet.create({
   // Featured
   featured: { borderRadius: 16, overflow: 'hidden', height: 280, marginBottom: 4 },
@@ -244,6 +287,9 @@ const styles = StyleSheet.create({
   availBar: { height: 3, borderRadius: 2, marginTop: 7, overflow: 'hidden' },
   availFill: { height: '100%', borderRadius: 2 },
   featuredMutual: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginBottom: 4, fontStyle: 'italic' },
+  featuredHeart: { position: 'absolute', top: 14, right: 14, backgroundColor: 'rgba(5,12,24,0.55)', borderRadius: 20, padding: 8, zIndex: 10 },
+  gridHeart: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(5,12,24,0.55)', borderRadius: 16, padding: 5 },
+  listHeart: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(5,12,24,0.55)', borderRadius: 20, padding: 7 },
 
   // List
   listCard: { borderRadius: 14, overflow: 'hidden', marginBottom: 12, borderWidth: 1 },

@@ -56,7 +56,9 @@ const DEFAULT_FILTERS: FilterState = { location: '', categories: [], dateFilter:
 export default function DiscoverScreen() {
   const { colors: C, isDark } = useTheme();
   const router = useRouter();
-  const { events } = useApp();
+  const { events, watchlist, toggleWatchlist } = useApp();
+  const savedCount = watchlist.size;
+  const [showingSaved, setShowingSaved] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -160,8 +162,11 @@ export default function DiscoverScreen() {
     (activeFilters.dateFilter !== 'Any time' ? 1 : 0) +
     (activeFilters.minPrice || activeFilters.maxPrice ? 1 : 0);
 
-  const showingResults = searchQuery.length > 0 || activeCategory !== null || hasActiveFilters;
+  const showingResults = (searchQuery.length > 0 || activeCategory !== null || hasActiveFilters) && !showingSaved;
   const current = HERO_SLIDES[slide];
+
+  // Saved events list
+  const savedEvents = useMemo(() => events.filter(e => watchlist.has(e.id)), [events, watchlist]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -243,8 +248,50 @@ export default function DiscoverScreen() {
           </View>
         </View>
 
+        {/* ── Saved events ──────────────────────────────────────────────────── */}
+        {showingSaved && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.sectionTitle, { color: C.text }]}>Saved Events</Text>
+                {savedCount > 0 && (
+                  <View style={[styles.limitedPill, { backgroundColor: '#F8717120', borderColor: '#F8717150' }]}>
+                    <Ionicons name="heart" size={10} color="#F87171" />
+                    <Text style={[styles.limitedText, { color: '#F87171' }]}>{savedCount}</Text>
+                  </View>
+                )}
+              </View>
+              {savedCount > 0 && (
+                <Pressable onPress={() => setShowingSaved(false)}>
+                  <Text style={{ color: C.primary, fontSize: 13, fontWeight: '600' }}>Done</Text>
+                </Pressable>
+              )}
+            </View>
+            {savedEvents.length === 0 ? (
+              <View style={styles.savedEmptyBox}>
+                <Ionicons name="heart-outline" size={52} color={C.textMuted} />
+                <Text style={[styles.savedEmptyTitle, { color: C.text }]}>No saved events yet</Text>
+                <Text style={[styles.savedEmptyText, { color: C.textMuted }]}>
+                  Tap the ♥ on any event to save it here for easy access.
+                </Text>
+                <Pressable
+                  style={[styles.savedExploreCta, { backgroundColor: C.primary }]}
+                  onPress={() => setShowingSaved(false)}
+                >
+                  <Ionicons name="compass-outline" size={16} color="#fff" />
+                  <Text style={styles.savedExploreCtaText}>Explore Events</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.twoCol}>
+                {savedEvents.map(e => <EventCard key={e.id} event={e} variant="grid" />)}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* ── Search / filter results ─────────────────────────────────────── */}
-        {showingResults ? (
+        {!showingSaved && showingResults ? (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: C.text }]}>
@@ -282,7 +329,7 @@ export default function DiscoverScreen() {
               </View>
             )}
           </View>
-        ) : (
+        ) : !showingSaved && (
           <>
             {/* ── Browse by Category ── */}
             <View style={styles.section}>
@@ -422,7 +469,7 @@ export default function DiscoverScreen() {
               placeholder="Search events, artists or venues…"
               placeholderTextColor="rgba(255,255,255,0.4)"
               value={searchQuery}
-              onChangeText={t => { setSearchQuery(t); setActiveCategory(null); }}
+              onChangeText={t => { setSearchQuery(t); setActiveCategory(null); setShowingSaved(false); }}
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
@@ -432,8 +479,19 @@ export default function DiscoverScreen() {
             )}
           </View>
           <Pressable
+            style={[styles.stickyHeartBtn, showingSaved && { backgroundColor: '#F87171', borderColor: '#F87171' }]}
+            onPress={() => { setShowingSaved(s => !s); setSearchQuery(''); setActiveCategory(null); setActiveFilters(DEFAULT_FILTERS); }}
+          >
+            <Ionicons name={showingSaved ? 'heart' : 'heart-outline'} size={18} color="#fff" />
+            {savedCount > 0 && !showingSaved && (
+              <View style={styles.savedBadge}>
+                <Text style={styles.savedBadgeText}>{savedCount}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
             style={[styles.stickyFilterBtn, hasActiveFilters && { backgroundColor: C.primary, borderColor: C.primary }]}
-            onPress={() => setFilterVisible(true)}
+            onPress={() => { setFilterVisible(true); setShowingSaved(false); }}
           >
             <Ionicons name="options-outline" size={18} color="#fff" />
             {activeFilterCount > 0 && (
@@ -505,6 +563,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   stickySearchInput: { flex: 1, fontSize: 14, paddingVertical: 0, color: '#fff' },
+  stickyHeartBtn: {
+    width: 42, height: 42, borderRadius: 12, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
+  },
+  savedBadge: {
+    position: 'absolute', top: -5, right: -5, minWidth: 16, height: 16,
+    borderRadius: 8, backgroundColor: '#F87171', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  savedBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
+  savedEmptyBox: { alignItems: 'center', paddingVertical: 48, gap: 10 },
+  savedEmptyTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  savedEmptyText: { fontSize: 13, textAlign: 'center', maxWidth: 240, lineHeight: 19 },
+  savedExploreCta: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24, marginTop: 8 },
+  savedExploreCtaText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   stickyFilterBtn: {
     width: 44, height: 44, borderRadius: 50, borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
