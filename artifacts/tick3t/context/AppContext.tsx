@@ -14,6 +14,7 @@ const POOL_KEY = 'tick3t.pool.events';
 const PRIMARY_SOCIAL_KEY = 'tick3t.primary.social';
 const NOTIF_READ_KEY = 'tick3t.notifications.readIds';
 const NOTIF_PREFS_KEY = 'tick3t.notifications.prefs';
+const NOTIF_DISMISSED_KEY = 'tick3t.notifications.dismissedIds';
 
 const DEFAULT_NOTIF_PREFS: NotifPrefs = { events: true, resale: true, transfers: true, marketing: false };
 
@@ -388,6 +389,8 @@ interface AppContextValue {
   unreadCount: number;
   markAllRead: () => void;
   markNotifRead: (id: string) => void;
+  dismissNotif: (id: string) => void;
+  dismissAllNotifs: () => void;
   notifPrefs: NotifPrefs;
   setNotifPrefs: (prefs: Partial<NotifPrefs>) => void;
 }
@@ -407,6 +410,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [joinedPools, setJoinedPools] = useState<Set<string>>(new Set());
   const [notifications, setNotifications] = useState<AppNotification[]>(SEED_NOTIFICATIONS);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<Set<string>>(new Set());
   const [notifPrefs, setNotifPrefsState] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
   const [user, setUser] = useState<User>({
     id: '1',
@@ -454,7 +458,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(PRIMARY_SOCIAL_KEY).then(raw => {
       if (raw) { try { setPrimarySocialState(JSON.parse(raw)); } catch { /* ignore */ } }
     });
-    // Restore notification read state (we always show seed data, just persist which are read)
+    // Restore notification dismissed + read state
+    AsyncStorage.getItem(NOTIF_DISMISSED_KEY).then(raw => {
+      if (raw) {
+        try {
+          const ids: string[] = JSON.parse(raw);
+          if (ids.length) {
+            const idSet = new Set(ids);
+            setDismissedNotifIds(idSet);
+            setNotifications(prev => prev.filter(n => !idSet.has(n.id)));
+          }
+        } catch { /* ignore */ }
+      }
+    });
     AsyncStorage.getItem(NOTIF_READ_KEY).then(raw => {
       if (raw) {
         try {
@@ -672,6 +688,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const dismissNotif = useCallback((id: string) => {
+    setDismissedNotifIds(prev => {
+      const next = new Set([...prev, id]);
+      AsyncStorage.setItem(NOTIF_DISMISSED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  const dismissAllNotifs = useCallback(() => {
+    setNotifications(prev => {
+      const ids = prev.map(n => n.id);
+      setDismissedNotifIds(existing => {
+        const next = new Set([...existing, ...ids]);
+        AsyncStorage.setItem(NOTIF_DISMISSED_KEY, JSON.stringify([...next]));
+        return next;
+      });
+      return [];
+    });
+  }, []);
+
   const setNotifPrefs = useCallback((prefs: Partial<NotifPrefs>) => {
     setNotifPrefsState(prev => {
       const next = { ...prev, ...prefs };
@@ -708,7 +745,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getWaitlistCount, getPoolData,
       purchaseTicket, purchaseMarketplaceTicket, getTicketById, getEventById, getOrganizerEvents,
       updateUser, addMarketplaceListing, cancelListing, transferTicket, toggleFollowOrganizer,
-      notifications, unreadCount, markAllRead, markNotifRead, notifPrefs, setNotifPrefs,
+      notifications, unreadCount, markAllRead, markNotifRead, dismissNotif, dismissAllNotifs, notifPrefs, setNotifPrefs,
     }}>
       {children}
     </AppContext.Provider>

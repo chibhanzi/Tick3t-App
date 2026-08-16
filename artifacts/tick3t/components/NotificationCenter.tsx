@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
@@ -41,30 +43,72 @@ const TYPE_META: Record<NotificationType, { icon: string; color: string }> = {
 
 // ── Row ───────────────────────────────────────────────────────────────────────
 
-function NotifRow({ n, onPress }: { n: AppNotification; onPress: () => void }) {
+function NotifRow({
+  n,
+  onPress,
+  onDismiss,
+}: {
+  n: AppNotification;
+  onPress: () => void;
+  onDismiss: (id: string) => void;
+}) {
   const { colors: C } = useTheme();
   const meta = TYPE_META[n.type];
+  const swipeableRef = useRef<Swipeable>(null);
+
+  const renderRightActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+    _dragX: Animated.AnimatedInterpolation<number>,
+  ) => {
+    const opacity = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.7, 1] });
+    const scale  = progress.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] });
+    return (
+      <Animated.View style={[styles.deleteAction, { opacity }]}>
+        <Pressable
+          style={styles.deleteBtn}
+          onPress={() => {
+            swipeableRef.current?.close();
+            onDismiss(n.id);
+          }}
+        >
+          <Animated.View style={{ alignItems: 'center', gap: 4, transform: [{ scale }] }}>
+            <Ionicons name="trash-outline" size={20} color="#fff" />
+            <Text style={styles.deleteBtnText}>Delete</Text>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+    );
+  };
+
   return (
-    <Pressable
-      style={[
-        styles.row,
-        { backgroundColor: n.read ? C.card : C.primary + '0D', borderColor: C.border },
-      ]}
-      onPress={onPress}
+    <Swipeable
+      ref={swipeableRef}
+      friction={2}
+      overshootRight={false}
+      renderRightActions={renderRightActions}
+      containerStyle={{ borderRadius: 14, overflow: 'hidden' }}
     >
-      {/* Icon */}
-      <View style={[styles.iconBox, { backgroundColor: meta.color + '20' }]}>
-        <Ionicons name={meta.icon as any} size={20} color={meta.color} />
-      </View>
-      {/* Text */}
-      <View style={{ flex: 1, gap: 3 }}>
-        <Text style={[styles.rowTitle, { color: C.text }]} numberOfLines={1}>{n.title}</Text>
-        <Text style={[styles.rowBody, { color: C.textSecondary }]} numberOfLines={2}>{n.body}</Text>
-        <Text style={[styles.rowTime, { color: C.textMuted }]}>{relativeTime(n.timestamp)}</Text>
-      </View>
-      {/* Unread dot */}
-      {!n.read && <View style={[styles.unreadDot, { backgroundColor: C.primary }]} />}
-    </Pressable>
+      <Pressable
+        style={[
+          styles.row,
+          { backgroundColor: n.read ? C.card : C.primary + '0D', borderColor: C.border },
+        ]}
+        onPress={onPress}
+      >
+        {/* Icon */}
+        <View style={[styles.iconBox, { backgroundColor: meta.color + '20' }]}>
+          <Ionicons name={meta.icon as any} size={20} color={meta.color} />
+        </View>
+        {/* Text */}
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={[styles.rowTitle, { color: C.text }]} numberOfLines={1}>{n.title}</Text>
+          <Text style={[styles.rowBody, { color: C.textSecondary }]} numberOfLines={2}>{n.body}</Text>
+          <Text style={[styles.rowTime, { color: C.textMuted }]}>{relativeTime(n.timestamp)}</Text>
+        </View>
+        {/* Unread dot */}
+        {!n.read && <View style={[styles.unreadDot, { backgroundColor: C.primary }]} />}
+      </Pressable>
+    </Swipeable>
   );
 }
 
@@ -75,7 +119,9 @@ interface Props { visible: boolean; onClose: () => void }
 export default function NotificationCenter({ visible, onClose }: Props) {
   const { colors: C } = useTheme();
   const router = useRouter();
-  const { notifications, markAllRead, markNotifRead, notifPrefs } = useApp();
+  const {
+    notifications, markAllRead, markNotifRead, dismissNotif, dismissAllNotifs, notifPrefs,
+  } = useApp();
 
   // Filter by prefs
   const visible_notifs = notifications.filter(n => {
@@ -85,22 +131,17 @@ export default function NotificationCenter({ visible, onClose }: Props) {
 
   const unreadCount = visible_notifs.filter(n => !n.read).length;
 
-  const handleOpen = () => {
-    markAllRead();
-    onClose();
-  };
-
   const handleRow = (n: AppNotification) => {
     markNotifRead(n.id);
     onClose();
     if (n.deepLink) {
-      // small delay to let sheet close
       setTimeout(() => router.push(n.deepLink as never), 200);
     }
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1, justifyContent: 'flex-end' }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -119,10 +160,15 @@ export default function NotificationCenter({ visible, onClose }: Props) {
                 </View>
               )}
             </View>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
               {unreadCount > 0 && (
                 <Pressable onPress={() => markAllRead()}>
-                  <Text style={[styles.markAllBtn, { color: C.primary }]}>Mark all read</Text>
+                  <Text style={[styles.headerBtn, { color: C.primary }]}>Mark all read</Text>
+                </Pressable>
+              )}
+              {visible_notifs.length > 0 && (
+                <Pressable onPress={() => dismissAllNotifs()}>
+                  <Text style={[styles.headerBtn, { color: C.textSecondary }]}>Clear all</Text>
                 </Pressable>
               )}
               <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: C.surface }]}>
@@ -148,13 +194,19 @@ export default function NotificationCenter({ visible, onClose }: Props) {
             ) : (
               <View style={{ gap: 8 }}>
                 {visible_notifs.map(n => (
-                  <NotifRow key={n.id} n={n} onPress={() => handleRow(n)} />
+                  <NotifRow
+                    key={n.id}
+                    n={n}
+                    onPress={() => handleRow(n)}
+                    onDismiss={dismissNotif}
+                  />
                 ))}
               </View>
             )}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -173,7 +225,7 @@ const styles = StyleSheet.create({
     minWidth: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5,
   },
   unreadBadgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
-  markAllBtn: { fontSize: 13, fontWeight: '700', alignSelf: 'center' },
+  headerBtn: { fontSize: 13, fontWeight: '700' },
   closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 
   row: {
@@ -184,6 +236,13 @@ const styles = StyleSheet.create({
   rowBody:  { fontSize: 13, lineHeight: 18 },
   rowTime:  { fontSize: 11 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+
+  deleteAction: {
+    width: 80, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#EF4444', borderRadius: 14, marginLeft: 6,
+  },
+  deleteBtn: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' },
+  deleteBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
   emptyState: { alignItems: 'center', paddingVertical: 48, gap: 10 },
   emptyTitle: { fontSize: 17, fontWeight: '800' },
