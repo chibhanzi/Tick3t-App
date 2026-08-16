@@ -24,6 +24,45 @@ function relativeTime(iso: string): string {
   return `${Math.floor(days / 7)}w ago`;
 }
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function dateGroupLabel(iso: string): string {
+  const now = new Date();
+  const d = new Date(iso);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((todayStart - dStart) / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return DAY_NAMES[d.getDay()];
+  return 'Older';
+}
+
+interface NotifSection { title: string; data: AppNotification[] }
+
+function groupNotifications(notifs: AppNotification[]): NotifSection[] {
+  const map = new Map<string, AppNotification[]>();
+  for (const n of notifs) {
+    const label = dateGroupLabel(n.timestamp);
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(n);
+  }
+  // Sort rows within each section newest-first, then sort sections by their
+  // most-recent notification timestamp, with "Older" always last.
+  return [...map.entries()]
+    .map(([title, data]) => ({
+      title,
+      data: [...data].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      ),
+    }))
+    .sort((a, b) => {
+      if (a.title === 'Older') return 1;
+      if (b.title === 'Older') return -1;
+      return new Date(b.data[0].timestamp).getTime() - new Date(a.data[0].timestamp).getTime();
+    });
+}
+
 // pref category → which notification types belong to it
 const TYPE_TO_PREF: Record<NotificationType, keyof ReturnType<typeof useApp>['notifPrefs']> = {
   event_reminder:        'events',
@@ -192,14 +231,23 @@ export default function NotificationCenter({ visible, onClose }: Props) {
                 </Text>
               </View>
             ) : (
-              <View style={{ gap: 8 }}>
-                {visible_notifs.map(n => (
-                  <NotifRow
-                    key={n.id}
-                    n={n}
-                    onPress={() => handleRow(n)}
-                    onDismiss={dismissNotif}
-                  />
+              <View style={{ gap: 0 }}>
+                {groupNotifications(visible_notifs).map(section => (
+                  <View key={section.title}>
+                    <View style={[styles.sectionHeader, { backgroundColor: C.card }]}>
+                      <Text style={[styles.sectionLabel, { color: C.textMuted }]}>{section.title}</Text>
+                    </View>
+                    <View style={{ gap: 8 }}>
+                      {section.data.map(n => (
+                        <NotifRow
+                          key={n.id}
+                          n={n}
+                          onPress={() => handleRow(n)}
+                          onDismiss={dismissNotif}
+                        />
+                      ))}
+                    </View>
+                  </View>
                 ))}
               </View>
             )}
@@ -243,6 +291,13 @@ const styles = StyleSheet.create({
   },
   deleteBtn: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' },
   deleteBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+  sectionHeader: {
+    paddingTop: 16, paddingBottom: 6,
+  },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase',
+  },
 
   emptyState: { alignItems: 'center', paddingVertical: 48, gap: 10 },
   emptyTitle: { fontSize: 17, fontWeight: '800' },
